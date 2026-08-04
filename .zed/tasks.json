@@ -1,0 +1,44 @@
+[
+  {
+    "label": "dotnet build ",
+    "type": "shell",
+    "command": "dotnet",
+    "args": [
+      "build",
+      "$ZED_WORKTREE_ROOT/WebVella.Erp.Site/WebVella.Erp.Site.csproj",
+    ],
+    "group": {
+      "kind": "build",
+      "isDefault": true,
+    },
+    "problemMatcher": "$msCompile",
+    // "presentation": {
+    //   "reveal": "always",
+    //   "panel": "new",
+    // }
+  },
+  {
+    "label": "dotnet run ",
+    "type": "shell",
+    "command": "dotnet",
+    "args": [
+      "run",
+      "--project",
+      "$ZED_WORKTREE_ROOT/WebVella.Erp.Site/WebVella.Erp.Site.csproj",
+    ],
+    "group": {
+      "kind": "build",
+      "isDefault": true,
+    },
+    "problemMatcher": "$msCompile",
+    // "presentation": {
+    //   "reveal": "always",
+    //   "panel": "new",
+    // }
+  },
+  {
+    "label": "Kill All Running Apps",
+    "command": "pkill -9 -f 'dotnet|node|python|go|rustc'",
+    "use_new_terminal": false,
+  },
+]
