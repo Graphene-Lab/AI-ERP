@@ -38,7 +38,7 @@
   },
   {
     "label": "Kill All Running Apps",
-    "command": "pkill -9 -f 'dotnet|node|python|go|rustc'",
+    "command": "pkill -9 -f 'dotnet'",
     "use_new_terminal": false,
   },
 ]

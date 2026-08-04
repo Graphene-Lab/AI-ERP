@@ -39,12 +39,12 @@ namespace WebVella.Erp.Database
 
         //const string GROUPBY = @"GROUP BY {0}";
 
-        const string OTM_RELATION_TEMPLATE = @"	(SELECT  COALESCE( array_to_json( array_agg( row_to_json(d) )), '[]') FROM ( 
-					SELECT {1} 
+        const string OTM_RELATION_TEMPLATE = @"	(SELECT  COALESCE( array_to_json( array_agg( row_to_json(d) )), '[]') FROM (
+					SELECT {1}
 					FROM {2} {3}
 					WHERE {3}.{4} = {5}.{6} ) d )::jsonb AS ""{0}"",";
 
-        const string MTM_RELATION_TEMPLATE = @"( SELECT  COALESCE(  array_to_json(array_agg( row_to_json(d))), '[]') FROM ( 
+        const string MTM_RELATION_TEMPLATE = @"( SELECT  COALESCE(  array_to_json(array_agg( row_to_json(d))), '[]') FROM (
 					SELECT {1}
 					FROM {2} {3}
 					LEFT JOIN  {4} {5} ON {6}.{7} = {8}.{9}
@@ -102,13 +102,13 @@ namespace WebVella.Erp.Database
 					// this is set as text because later
 					// the generated SQL will be something like
 
-					// INSERT INTO places 
-					//  (id, 
-					//  border) 
-					// VALUES 
-					//  (@id, 
+					// INSERT INTO places
+					//  (id,
+					//  border)
+					// VALUES
+					//  (@id,
 					//  ST_Transform(ST_GeomFromGeoJSON(@border),4326)::geography)
-					// 
+					//
 					param.Type = NpgsqlDbType.Text;
 					GeographyField geo = (field as GeographyField);
 
@@ -159,13 +159,13 @@ namespace WebVella.Erp.Database
 					// this is set as text because later
 					// the generated SQL will be something like
 
-					// INSERT INTO places 
-					//  (id, 
-					//  border) 
-					// VALUES 
-					//  (@id, 
+					// INSERT INTO places
+					//  (id,
+					//  border)
+					// VALUES
+					//  (@id,
 					//  ST_Transform(ST_GeomFromGeoJSON(@border),4326)::geography)
-					// 
+					//
 					param.Type = NpgsqlDbType.Text;
 					GeographyField geo = (field as GeographyField);
 					param.Value = record.Value;
@@ -324,8 +324,8 @@ namespace WebVella.Erp.Database
 			DbRepository.SetColumnDefaultValue(RECORD_COLLECTION_PREFIX + entityName, field, overrideNulls);
 
 			DbRepository.SetColumnNullable(RECORD_COLLECTION_PREFIX + entityName, field.Name, !field.Required);
-			
-           
+
+
 
 
             if (field.Searchable)
@@ -377,7 +377,7 @@ namespace WebVella.Erp.Database
 
 			if (value is JToken)
 			{
-				//we convert JToken to string for specified types, because when date formated string 
+				//we convert JToken to string for specified types, because when date formated string
 				//is saved in JToken value, it get converted to DateTime. It may happen with other specific texts also.
 				if( field is EmailField || field is FileField || field is ImageField ||
 					field is HtmlField || field is MultiLineTextField || field is PasswordField ||
@@ -628,7 +628,7 @@ namespace WebVella.Erp.Database
                             var sortField = entity.Fields.SingleOrDefault(x => x.Name == parametrizedSort.Field );
                             if (sortField == null) //we skip sorf fields not found in entity
                                 continue;
-                          
+
                             if(!fields.Any(f=>f.Id == sortField.Id))
                             {
                                 fields.Add(sortField);
@@ -655,11 +655,11 @@ namespace WebVella.Erp.Database
             bool noSelectRelations = !fields.Any(field => field is RelationFieldMeta);
             if (noSelectRelations)
             {
-                #region no relations 
+                #region no relations
 
                 var tableName = GetTableNameForEntity(entity);
 				string columnNames = String.Join(",", fields.Select(x => x.GetFieldType() == FieldType.GeographyField ? "ST_As" + (x as GeographyField).Format + "(" + tableName + ".\"" + x.Name + "\") AS \"" + x.Name + "\"" : tableName + ".\"" + x.Name + "\""));
-								
+
                 if(!containsRelationalQuery)
                     sql.AppendLine("SELECT " + columnNames + " FROM " + tableName);
                 else
@@ -732,7 +732,7 @@ namespace WebVella.Erp.Database
                         sql.AppendLine(sortSql);
                 }
 
-				//paging 
+				//paging
 				if (query.Limit != null || query.Skip != null)
 				{
 					string pagingSql = "LIMIT ";
@@ -793,7 +793,7 @@ namespace WebVella.Erp.Database
             }
             else
             {
-                #region relational 
+                #region relational
 
                 sql.AppendLine(BEGIN_OUTER_SELECT);
 
@@ -992,7 +992,7 @@ namespace WebVella.Erp.Database
                                 //sqlJoins.AppendLine(string.Format(JOIN, GetTableNameForEntity(relationField.TargetEntity), relationName,
                                 //				 originJoinAlias, "target_id", relationName, relationField.TargetField.Name));
 
-                                //		const string MTM_RELATION_TEMPLATE = @"'{0}', ( SELECT  COALESCE(  array_to_json(array_agg( row_to_json(d))), '[]') FROM ( 
+                                //		const string MTM_RELATION_TEMPLATE = @"'{0}', ( SELECT  COALESCE(  array_to_json(array_agg( row_to_json(d))), '[]') FROM (
                                 //			SELECT {1}
                                 //			FROM {2} {3}
                                 //			LEFT JOIN  {4} {5} ON {6}.{7} = {8}.{9}
@@ -1042,7 +1042,8 @@ namespace WebVella.Erp.Database
                         }
                     }
                 }
-                sql.Remove(sql.Length - 3, 3); //remove newline and comma
+                var removeCount = 1 + Environment.NewLine.Length;
+                sql.Remove(sql.Length - removeCount, removeCount); //remove newline and comma
                 sql.AppendLine(END_SELECT);
                 sql.AppendLine(string.Format(FROM, GetTableNameForEntity(entity)));
 
@@ -1115,7 +1116,7 @@ namespace WebVella.Erp.Database
                         sql.AppendLine(sortSql);
                 }
 
-                //paging 
+                //paging
                 if ((query.Limit != 0 && query.Limit != null) || query.Skip != null)
                 {
                     string pagingSql = "LIMIT ";
@@ -1385,7 +1386,7 @@ namespace WebVella.Erp.Database
 
                 }
 
-                if (fieldType == FieldType.MultiSelectField &&	
+                if (fieldType == FieldType.MultiSelectField &&
 						!(query.QueryType == QueryType.EQ || query.QueryType == QueryType.NOT || query.QueryType == QueryType.CONTAINS ))
                     throw new Exception("The query operator is not supported on field '" + fieldType.ToString() + "'");
 			}
@@ -1496,7 +1497,7 @@ namespace WebVella.Erp.Database
 
 						if (singleWord)
 						{
-							parameter.Value = parameter.Value + ":*"; //search for all lexemes starting with this word 
+							parameter.Value = parameter.Value + ":*"; //search for all lexemes starting with this word
 							if (string.IsNullOrWhiteSpace(query.FtsLanguage))
 								sql = sql + " to_tsvector( 'simple', " + completeFieldName + ") @@ to_tsquery( 'simple', " + paramName + ") ";
 							else
@@ -1597,7 +1598,7 @@ namespace WebVella.Erp.Database
             if (entity == null)
                 throw new Exception(string.Format("The entity '{0}' does not exists.", query.EntityName));
 
-            //We check for wildcard symbol and if present include all fields of the queried entity 
+            //We check for wildcard symbol and if present include all fields of the queried entity
             bool wildcardSelectionEnabled = tokens.Any(x => x == WILDCARD_SYMBOL);
             if (wildcardSelectionEnabled)
             {
@@ -1606,7 +1607,7 @@ namespace WebVella.Erp.Database
                 tokens.Remove(WILDCARD_SYMBOL); //UPDATE: NULL Exception is triggered if not removed.
             }
 
-            //process only tokens do not contain RELATION_SEPARATOR 
+            //process only tokens do not contain RELATION_SEPARATOR
             foreach (var token in tokens)
             {
                 if (!token.Contains(RELATION_SEPARATOR))
@@ -2094,4 +2095,3 @@ namespace WebVella.Erp.Database
         }
     }
 }
-
