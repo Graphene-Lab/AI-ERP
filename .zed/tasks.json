@@ -1,44 +1,26 @@
 [
   {
-    "label": "dotnet build ",
-    "type": "shell",
-    "command": "dotnet",
-    "args": [
-      "build",
-      "$ZED_WORKTREE_ROOT/WebVella.Erp.Site/WebVella.Erp.Site.csproj",
-    ],
-    "group": {
-      "kind": "build",
-      "isDefault": true,
-    },
-    "problemMatcher": "$msCompile",
-    // "presentation": {
-    //   "reveal": "always",
-    //   "panel": "new",
-    // }
-  },
-  {
-    "label": "dotnet run ",
-    "type": "shell",
-    "command": "dotnet",
-    "args": [
-      "run",
-      "--project",
-      "$ZED_WORKTREE_ROOT/WebVella.Erp.Site/WebVella.Erp.Site.csproj",
-    ],
-    "group": {
-      "kind": "build",
-      "isDefault": true,
-    },
-    "problemMatcher": "$msCompile",
-    // "presentation": {
-    //   "reveal": "always",
-    //   "panel": "new",
-    // }
-  },
-  {
-    "label": "Kill All Running Apps",
+    "label": "Kill All .Net",
     "command": "pkill -9 -f 'dotnet'",
     "use_new_terminal": false,
   },
+  {
+    "label": "Solution Build",
+    "command": "dotnet",
+    "args": [
+      "build",
+      "-p:WarningLevel=0",
+      "-p:NoWarn",
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT/WebVella.Erp.Site",
+  },
+  {
+      "label": "WebVella.ERP NuGet",
+      "command": "dotnet",
+      "args": [
+        "pack",
+        "--configuration Release"
+      ],
+      "cwd": "$ZED_WORKTREE_ROOT/WebVella.Erp"
+    },
 ]

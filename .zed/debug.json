@@ -1,6 +1,6 @@
 [
   {
-    "label": "Debug ErpSite",
+    "label": "Debug Site",
     "adapter": "netcoredbg",
     "request": "launch",
     "type": "coreclr",
@@ -14,9 +14,9 @@
       "command": "dotnet",
       "args": [
         "build",
-        "$ZED_WORKTREE_ROOT/WebVella.Erp.Site/WebVella.Erp.Site.csproj",
         "-p:Configuration=Debug",
-        "-p:TargetFramework=net10.0"
+        "-p:NoWarn",
+        "-p:WarningLevel=0",
       ]
     }
   }
