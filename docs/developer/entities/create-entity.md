@@ -60,7 +60,7 @@ If successful, this method returns a response JSON with the following structure:
 
 ## Web interface
 
-**Important**: This page describes a process of creating an entity using the `WebVella SDK Plugin` web interface
+**Important**: This page describes a process of creating an entity using the `AI SDK Plugin` web interface
 
 
 ##### Step 1: Navigate to the SDK Application

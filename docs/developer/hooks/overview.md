@@ -1,5 +1,5 @@
 ﻿<!--{"sort_order":1, "name": "overview", "label": "Overview and Types"}-->
-# What is a WebVella ERP Hook
+# What is a AI ERP Hook
 
 Hooks' purpose is to achieve better modularity in the system, by providing a managed way for an outside code to be executed, each time a specific system process is run. There are several types of hooks that you can attach to.
 Each of them has a specific requirement to be discovered and referenced by the system.
@@ -41,10 +41,10 @@ Example API Hook attachment is:
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using WebVella.Erp.Api.Models;
-using WebVella.Erp.Hooks;
+using AI.Erp.Api.Models;
+using AI.Erp.Hooks;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks
+namespace AI.Erp.Plugins.SDK.Hooks
 {
 	[HookAttachment("user")]
 	public class UserHook : IErpPreCreateRecordHook, IErpPreUpdateRecordHook,IErpPreDeleteRecordHook,	
@@ -103,11 +103,11 @@ This hook is provided by the `IPageHook` interface and has two methods `OnGet` a
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment]
 	public class AllPagesHook : IPageHook
@@ -130,11 +130,11 @@ The custom hook handler will be defined by requesting the page with a query para
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment(key:"webvella-sdk")]  // <<<<< The key is the name of the custom hook handler
 	public class AllPagesHook : IPageHook
@@ -162,11 +162,11 @@ Targets the `login` page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : ILoginPageHook
@@ -189,11 +189,11 @@ Targets the `logout` page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : ILogoutPageHook
@@ -217,11 +217,11 @@ Targets the `home` page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IHomePageHook
@@ -245,11 +245,11 @@ Targets a `site` type page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : ISitePageHook
@@ -273,11 +273,11 @@ Targets a `application` type page (not attached to a sitemap node) with the foll
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IApplicationHomePageHook
@@ -301,11 +301,11 @@ Targets a `application` type page (attached to a sitemap node) with the followin
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IApplicationNodePageHook
@@ -329,11 +329,11 @@ Targets a `record create` type page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordCreatePageHook
@@ -357,11 +357,11 @@ Targets a `record details` type page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordDetailsPageHook
@@ -380,11 +380,11 @@ Targets a `record list` type page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordListPageHook
@@ -408,11 +408,11 @@ Targets a `record manage` type page with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordManagePageHook
@@ -436,11 +436,11 @@ Targets a `record create` type page when in relation with the following position
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordRelatedRecordCreatePageHook
@@ -464,11 +464,11 @@ Targets a `record details` type page when in relation with the following positio
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordRelatedRecordDetailsPageHook
@@ -487,11 +487,11 @@ Targets a `record list` type page when in relation with the following positions:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordRelatedRecordsListPageHook
@@ -515,11 +515,11 @@ Targets a `record manage` type page when in relation with the following position
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : IRecordRelatedRecordManagePageHook

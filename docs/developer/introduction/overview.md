@@ -1,5 +1,5 @@
 ﻿<!--{"sort_order":1, "name": "overview", "label": "Overview"}-->
-# Welcome to WebVella ERP Project
+# Welcome to AI ERP Project
 
 Our goal is to create a truly opensource and free platform, that allows the quick and painless creation business web applications on the technology we love. 
 

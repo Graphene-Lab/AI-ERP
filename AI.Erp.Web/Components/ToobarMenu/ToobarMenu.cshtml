@@ -1,0 +1,16 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.Controls
+@using AI.Erp.Web.Models;
+@{
+	var toolbarMenu = (List<MenuItem>)ViewBag.ToolbarMenu;
+}
+<div id="action-panel">
+	<div id="toolbar" class="pl-2 pr-2">
+		@foreach (var menuItem in toolbarMenu)
+		{
+			@*@Html.Partial("NavMenu", menuItem)*@
+            <partial name="NavMenu" for="@menuItem"/>
+		}
+	</div>
+</div>

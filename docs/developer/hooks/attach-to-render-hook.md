@@ -9,11 +9,11 @@ IMPORTANT: In our application master page there are already render hooks include
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
-using WebVella.Erp.Web.Services;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
+using AI.Erp.Web.Services;
 
-namespace WebVella.Erp.Plugins.Next.Components
+namespace AI.Erp.Plugins.Next.Components
 {
 	[RenderHookAttachment("head-top", 10)]
 	public class HookMetaHead : ViewComponent

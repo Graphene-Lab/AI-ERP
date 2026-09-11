@@ -1,7 +1,7 @@
 ﻿<!--{"sort_order":1, "name": "overview", "label": "Overview"}-->
-# What is a WebVella ERP Plugin Page Component
+# What is a AI ERP Plugin Page Component
 
-The page components are used in the page body generation within the WebVella ERP. They provide the end user with the ability to quickly add, drag and drop, set the options of a certain presentation scenarios
+The page components are used in the page body generation within the AI ERP. They provide the end user with the ability to quickly add, drag and drop, set the options of a certain presentation scenarios
 
 All elements that are rendered within the "generated" page body are part of a page component.
 

@@ -58,24 +58,24 @@
 +======================+==================================+
 | `open` or `show`     | This action will open the modal. Example:
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcModal','open')
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcModal','open')
 |                      | ```
 |                      | 
 |                      | If there are one or more modals on the page you need to set the correct `htmlId` of the modal's PageComponent  
 |                      | 
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcModal',{htmlId:HTML_ID,action:'open',payload:null})
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcModal',{htmlId:HTML_ID,action:'open',payload:null})
 |                      | ```
 +----------------------+----------------------------------+
 | `close` or `hide`    | This action will close the modal. Example:
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcModal','close')
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcModal','close')
 |                      | ```
 |                      | 
 |                      | If there are one or more modals on the page you need to set the correct `htmlId` of the modal's PageComponent  
 |                      | 
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcModal',{htmlId:HTML_ID,action:'close',payload:null})
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcModal',{htmlId:HTML_ID,action:'close',payload:null})
 |                      | ```
 +----------------------+----------------------------------+
 

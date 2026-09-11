@@ -1,0 +1,24 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web;
+@using AI.Erp.Api.Models;
+@using AI.Erp.Plugins.Project.Components;
+@{
+	var options = (PcProjectWidgetTasksQueue.PcProjectWidgetTasksQueueOptions)ViewBag.Options;
+	var erpRequest = (ErpRequestContext)ViewBag.RequestContext;
+	var typeSelectOptions = (List<SelectOption>)ViewBag.TypeOptions;
+}
+<wv-row>
+	<wv-column span="4">
+		<wv-field-datasource name="project_id" value="@options.ProjectId" label-text="Project Id" page-id="erpRequest.Page.Id"></wv-field-datasource>
+	</wv-column>
+	<wv-column span="4">
+		<wv-field-datasource name="user_id" value="@options.UserId" label-text="User Id" page-id="erpRequest.Page.Id"></wv-field-datasource>
+	</wv-column>
+	<wv-column span="4">
+		<wv-field-select name="type" value="@options.Type" label-text="Type" options="typeSelectOptions.ToWvSelectOption()" required="true"></wv-field-select>
+	</wv-column>
+</wv-row>
+

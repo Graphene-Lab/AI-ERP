@@ -1,0 +1,30 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@{
+	var options = (PcSection.PcSectionOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+	var componentContext = (PageComponentContext)ViewBag.ComponentContext;
+}
+<wv-section id="wv-@(node.Id)" body-class="@options.BodyClass" class="@options.Class" field-mode="@options.FieldMode"
+	label-mode="@options.LabelMode" is-card="@options.IsCard" is-collapsable="@options.IsCollapsable" is-collapsed="@options.IsCollapsed"
+	title="@ViewBag.ProcessedTitle" title-tag="@options.TitleTag" is-visible="(bool)ViewBag.IsVisible">
+@foreach (var childNode in node.Nodes)
+{
+	var nodeComponentName = "";
+	if (childNode != null)
+	{
+		var nameArray = childNode.ComponentName.Split('.');
+		nodeComponentName = nameArray[nameArray.Length - 1];
+	}
+	if (!String.IsNullOrWhiteSpace(nodeComponentName))
+	{
+		var childOptions = PageUtils.ConvertStringToJObject(childNode.Options.ToString());
+		var pcContext = new PageComponentContext(childNode, componentContext.DataModel, ComponentMode.Display, childOptions, componentContext.Items);
+		@await Component.InvokeAsync(nodeComponentName, new { context = pcContext })
+	}
+}
+</wv-section>

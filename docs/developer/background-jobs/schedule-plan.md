@@ -72,7 +72,7 @@ The schedule plan is implemented by the `SchedulePlan` object.
 You can register a schedule plan by executing the following code in your plugin's initialize method:
 
 ```csharp
-using WebVella.Erp.Jobs
+using AI.Erp.Jobs
 
 
 DateTime utcNow = DateTime.UtcNow;

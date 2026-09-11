@@ -1,0 +1,12 @@
+﻿using System;
+using System.Reflection;
+
+namespace AI.Erp.Notifications
+{
+    internal class Listener
+    {
+		public string Channel { get; set; }
+		public Object Instance { get; set; }
+		public MethodInfo Method { get; set; }
+	}
+}

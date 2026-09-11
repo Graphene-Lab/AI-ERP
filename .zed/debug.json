@@ -4,8 +4,8 @@
     "adapter": "netcoredbg",
     "request": "launch",
     "type": "coreclr",
-    "program": "$ZED_WORKTREE_ROOT/WebVella.Erp.Site/bin/Debug/net10.0/WebVella.Erp.Site.dll",
-    "cwd": "$ZED_WORKTREE_ROOT/WebVella.Erp.Site",
+    "program": "$ZED_WORKTREE_ROOT/AI.Erp.Site/bin/Debug/net10.0/AI.Erp.Site.dll",
+    "cwd": "$ZED_WORKTREE_ROOT/AI.Erp.Site",
     "env": {
       "ASPNETCORE_ENVIRONMENT": "Development",
       "ASPNETCORE_URLS": "http://localhost:5000"

@@ -7,7 +7,7 @@ There are two types of datasources - database and code. Code datasources can be 
 
 ## Review existing datasources
 
-**Important**: This page describes a process using the `WebVella SDK Plugin` web interface
+**Important**: This page describes a process using the `AI SDK Plugin` web interface
 
 ##### Step 1: Navigate to the SDK Application
 

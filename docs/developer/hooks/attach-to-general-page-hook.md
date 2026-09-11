@@ -1,5 +1,5 @@
 ﻿<!--{"sort_order":3, "name": "attach-to-general-page-hook", "label": "Attach to a General Page Hook"}-->
-# Attach to a WebVella ERP General Page Hook
+# Attach to a AI ERP General Page Hook
 
 To create an "General Page Hook" attachment, you need to create a class file in your plugin's Hooks folder. In order for the system to reference a hook attachment, it needs to fulfill several requirements.
 
@@ -47,11 +47,11 @@ There are two methods that need to be implemented. Checkout the example that fol
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment]
 	public class AllPagesHook : IPageHook

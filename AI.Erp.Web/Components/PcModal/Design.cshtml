@@ -1,0 +1,16 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@{
+	var options = (PcModal.PcModalOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+	var href = (string)ViewBag.ProcessedHref;
+}
+<div class="p-1">
+<wv-pb-node-container parent-node-id="@node.Id" container-id="body"></wv-pb-node-container>
+<wv-pb-node-container parent-node-id="@node.Id" container-id="footer"></wv-pb-node-container>
+</div>

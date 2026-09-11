@@ -42,10 +42,10 @@ Code datasource are automatically referenced on application start. They are part
 ```csharp
 using System;
 using System.Collections.Generic;
-using WebVella.Erp.Api.Models;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Api.Models;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.DataSource
+namespace AI.Erp.Plugins.SDK.DataSource
 {
 	public class SampleCodeDataSource : CodeDataSource
 	{

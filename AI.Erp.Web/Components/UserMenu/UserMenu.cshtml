@@ -1,0 +1,12 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.Controls
+@using AI.Erp.Web.Models;
+@{
+	var userMenu = (List<MenuItem>)ViewBag.UserMenu;
+}
+@foreach (var menuItem in userMenu)
+{
+	@*@Html.Partial("NavMenu", menuItem)*@
+    <partial name="NavMenu" for="@menuItem"/>
+}

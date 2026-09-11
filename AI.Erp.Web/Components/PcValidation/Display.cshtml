@@ -1,0 +1,14 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Exceptions;
+@using AI.Erp.Web.Components;
+@{
+	var options = (PcValidation.PcValidationOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+	var validation = (ValidationException)ViewBag.Validation;
+}
+<wv-validation errors="@validation.ToErrorList()" message="@validation.Message"></wv-validation>

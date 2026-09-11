@@ -1,7 +1,7 @@
 ﻿<!--{"sort_order":2, "name": "eql", "label": "EQL Syntax"}-->
 # EQL Syntax for database query
 
-WebVella ERP support entity query language (EQL) for retrieving data from database. 
+AI ERP support entity query language (EQL) for retrieving data from database. 
 To make easier understanding of that topic, lets assume we have the following imaginary 
 entity structures and relation between them. 
 

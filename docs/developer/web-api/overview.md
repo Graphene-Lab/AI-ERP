@@ -1,9 +1,9 @@
 ﻿<!--{"sort_order":1, "name": "overview", "label": "Overview"}-->
 # Overview
 
-The Web API gives you access to the content management features you see in your web application and lets you extend them for use in your own applications. It is a RESTful and is organized around the content types and functionalities, of which you are familiar with in the WebVella ERP software.
+The Web API gives you access to the content management features you see in your web application and lets you extend them for use in your own applications. It is a RESTful and is organized around the content types and functionalities, of which you are familiar with in the AI ERP software.
 
-The WebVella ERP Web API is work in progress and we will gradually implement all available features.
+The AI ERP Web API is work in progress and we will gradually implement all available features.
 
 ## Date Format
 
@@ -24,7 +24,7 @@ You can make you RESTful requests by adding to your HiveSocial install domain th
 ```http
 https://<YOUR_DOMAIN>/api/v3/en_US/meta/relation
 ```
-**IMPORTANT:** Secure certificate (https) is recommendable for the WebVella Erp Web API
+**IMPORTANT:** Secure certificate (https) is recommendable for the AI Erp Web API
 
 ## Authorization
 

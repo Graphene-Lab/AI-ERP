@@ -1,0 +1,33 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Api.Models;
+@using AI.Erp.Web;
+@using WebVella.TagHelpers.Models;
+@{
+	var options = (PcBtnToolbar.PcBtnToolbarOptions)ViewBag.Options;
+	var erpRequest = (ErpRequestContext)ViewBag.RequestContext;
+	var cssSizeOptions = (List<WvSelectOption>)ViewBag.CssSize;
+}
+
+<wv-row>
+	<wv-column span="4">
+		<wv-field-datasource name="is_visible" label-text="Is Rendered" value="@options.IsVisible" page-id="erpRequest.Page.Id" placeholder="true"></wv-field-datasource>
+	</wv-column>
+	<wv-column span="4">
+		<wv-field-select name="size" label-text="Size" value="@((int)options.Size)" options="cssSizeOptions" required="true"></wv-field-select>
+	</wv-column>
+	<wv-column span="4">
+		<wv-field-checkbox name="is_vertical" label-text="Is vertical" value="@options.IsVertical" text-true="align vertically"></wv-field-checkbox>
+	</wv-column>
+</wv-row>
+<wv-row>
+	<wv-column span="4">
+		<wv-field-text name="class" label-text="Class" value="@options.Class"></wv-field-text>
+	</wv-column>
+	<wv-column span="4">
+		<wv-field-text name="id" label-text="Id" value="@options.Id"></wv-field-text>
+	</wv-column>
+</wv-row>

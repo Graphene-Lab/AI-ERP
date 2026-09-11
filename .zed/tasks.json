@@ -8,20 +8,20 @@
 		"label": "Solution Build",
 		"command": "dotnet",
 		"args": ["build", "-p:WarningLevel=0", "-p:NoWarn"],
-		"cwd": "$ZED_WORKTREE_ROOT/WebVella.Erp.Site",
+		"cwd": "$ZED_WORKTREE_ROOT/AI.Erp.Site",
 	},
 	{
-		"label": "WebVella.ERP NuGet",
+		"label": "AI.Erp NuGet",
 		"command": "dotnet",
 		"args": ["pack", "--configuration Release"],
-		"cwd": "$ZED_WORKTREE_ROOT/WebVella.Erp",
+		"cwd": "$ZED_WORKTREE_ROOT/AI.Erp",
 	},
 	//WebSite Run
 	{
 		"label": "WebSite Run",
 		"command": "dotnet",
 		"args": ["run", "--p:WarningLevel=0", "-p:NoWarn=NU1903%3BNU1701%3BNU1510"],
-		"cwd": "$ZED_WORKTREE_ROOT/WebVella.Erp.Site",
+		"cwd": "$ZED_WORKTREE_ROOT/AI.Erp.Site",
 		"env": {
 			"ASPNETCORE_ENVIRONMENT": "Development",
 			"ASPNETCORE_URLS": "http://localhost:5000",

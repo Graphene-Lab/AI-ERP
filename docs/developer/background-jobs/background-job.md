@@ -55,10 +55,10 @@ public override void Execute(JobContext context)
 
 ``` csharp
 using System.Threading;
-using WebVella.Erp.Diagnostics;
-using WebVella.Erp.Jobs;
+using AI.Erp.Diagnostics;
+using AI.Erp.Jobs;
 
-namespace WebVella.Erp.Plugins.SDK.Jobs
+namespace AI.Erp.Plugins.SDK.Jobs
 {
 	[Job("559c557a-0fd3-4235-b061-117197154ca5", "Sample job", true, JobPriority.Medium)]
 	public class SampleJob : ErpJob

@@ -1,5 +1,5 @@
 ﻿<!--{"sort_order":1, "name": "overview", "label": "Overview"}-->
-# What is a WebVella ERP Plugin
+# What is a AI ERP Plugin
 
 A plugin is in general a Razor Class Library that has some specific in order to fully utilized the platform's capabilities.
 

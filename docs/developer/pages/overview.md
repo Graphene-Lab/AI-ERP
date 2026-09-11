@@ -6,7 +6,7 @@ A page can be used by more then one application. In this case, the page could be
 
 ## Page types
 
-There are several page types, that have different purpose withing the built in logic of the WebVella ERP. They are: home page (only one), site pages, application pages, erp record details, erp record create, erp record details, erp record delete.
+There are several page types, that have different purpose withing the built in logic of the AI ERP. They are: home page (only one), site pages, application pages, erp record details, erp record create, erp record details, erp record delete.
 
 Based on the page type, the system will automatically fill in the corresponding properties in the Page DataModel, which is one of the main purposes of the page types.
 

@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+		<Version>1.7.8</Version>
+		<Authors>WebVella</Authors>
+		<Description>The Mail Plugin for the open-source and free platform AI ERP. It provides API, services and management for sending emails through SMTP services.</Description>
+		<Copyright>Copyright 2019</Copyright>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<PackageProjectUrl>https://webvella.com</PackageProjectUrl>
+		<Icon>https://webvella.com/favicon.ico</Icon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryUrl>https://github.com/WebVella/WebVella-ERP.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MailKit" Version="4.16.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\AI.Erp.Web\AI.Erp.Web.csproj" />
+		<ProjectReference Include="..\AI.Erp\AI.Erp.csproj" />
+	</ItemGroup>
+</Project>

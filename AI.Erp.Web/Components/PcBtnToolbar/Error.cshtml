@@ -1,0 +1,9 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Exceptions;
+@using AI.Erp.Web.Utils;
+@{
+	var validation = (ValidationException)ViewBag.Error;
+}
+<wv-validation errors="@validation.ToErrorList()" message="@validation.Message"></wv-validation>

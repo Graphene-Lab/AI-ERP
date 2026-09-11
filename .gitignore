@@ -215,8 +215,9 @@ FakesAssemblies/
 **/*.Server/GeneratedArtifacts
 **/*.Server/ModelManifest.xml
 _Pvt_Extensions
-/WebVella.ERP.Web/Properties/PublishProfiles
-/WebVella.ERP.sln.ide
-/WebVella.ERP.Site/Pages/WV/Pages
+/AI.Erp.Web/Properties/PublishProfiles
+/AI.Erp.sln.ide
+/AI.Erp.Site/Pages/WV/Pages
 **/Properties/launchSettings.json
-/.idea/.idea.WebVella.ERP3/.idea
+/.idea/.idea.AI.Erp/.idea
+/.qwen/

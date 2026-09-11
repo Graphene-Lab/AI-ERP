@@ -65,24 +65,24 @@
 +======================+==================================+
 | `open` or `show`     | This action will open the drawer. Example:
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcDrawer','open')
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcDrawer','open')
 |                      | ```
 |                      | 
 |                      | If there are one or more drawers on the page you need to set the correct `htmlId` of the drawer's PageComponent  
 |                      | 
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcDrawer',{htmlId:HTML_ID,action:'open',payload:null})
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcDrawer',{htmlId:HTML_ID,action:'open',payload:null})
 |                      | ```
 +----------------------+----------------------------------+
 | `close` or `hide`    | This action will close the drawer. Example:
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcDrawer','close')
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcDrawer','close')
 |                      | ```
 |                      | 
 |                      | If there are one or more drawers on the page you need to set the correct `htmlId` of the drawer's PageComponent  
 |                      | 
 |                      | ```javascript
-|                      | ErpEvent.DISPATCH('WebVella.Erp.Web.Components.PcDrawer',{htmlId:HTML_ID,action:'close',payload:null})
+|                      | ErpEvent.DISPATCH('AI.Erp.Web.Components.PcDrawer',{htmlId:HTML_ID,action:'close',payload:null})
 |                      | ```
 +----------------------+----------------------------------+
 

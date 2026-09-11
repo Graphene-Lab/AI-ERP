@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Version>1.7.5</Version>
+        <PackageId>AI.Erp.Plugins.SDK</PackageId>
+        <Authors>WebVella</Authors>
+        <Product />
+        <PackageProjectUrl>https://webvella.com</PackageProjectUrl>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <Icon>http://webvella.com/favicon.ico</Icon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>The SDK Plugin for the open-source and free platform AI ERP. It helps to create, manage and delete main ERP objects, entities, relations and data.</Description>
+        <Company>WebVella</Company>
+        <Copyright>Copyright 2019</Copyright>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+        <RepositoryUrl>https://github.com/WebVella/WebVella-ERP.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <!-- Remove the language litter of code analysis on publish https://github.com/dotnet/roslyn/issues/39458-->
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="Components\WvSdkPageSitemap\form.js" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Components\WvSdkPageSitemap\form.js" />
+    </ItemGroup>
+    <!--This group specify that all cs and html files from Snippets folder will be embedded-->
+    <ItemGroup>
+        <EmbeddedResource Include="Snippets\**\*.cs" />
+        <EmbeddedResource Include="Snippets\**\*.html" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AI.Erp.Web\AI.Erp.Web.csproj" />
+        <ProjectReference Include="..\AI.Erp\AI.Erp.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Hooks\" />
+        <Folder Include="Snippets\" />
+    </ItemGroup>
+
+</Project>

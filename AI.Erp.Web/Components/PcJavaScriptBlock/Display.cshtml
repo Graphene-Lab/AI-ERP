@@ -1,0 +1,12 @@
+﻿
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@{
+	var options = (PcJavaScriptBlock.PcJavaScriptBlockOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+}
+<script>
+@Html.Raw(options.Script)
+</script>

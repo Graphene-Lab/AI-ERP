@@ -1,0 +1,20 @@
+﻿@page
+@model AI.Erp.Web.Pages.DebugModel
+@using AI.Erp.Web;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Services;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Api.Models;
+@using AI.Erp;
+
+@{
+    Layout = "~/Pages/_AppMaster.cshtml";
+    ViewData["Title"] = "Desktop";
+}
+
+<div class="row">
+    <div class="col-6">
+@ViewData["Result"]
+    </div>
+
+</div>

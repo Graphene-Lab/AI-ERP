@@ -1,0 +1,36 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
+@using AI.Erp.Exceptions;
+@{
+	var options = (PcForm.PcFormOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+	var erpRequest = (ErpRequestContext)ViewBag.RequestContext;
+	var componentContext = (PageComponentContext)ViewBag.ComponentContext;
+	var validation = (ValidationException)ViewBag.Validation;
+	var action = (string)ViewBag.Action;
+}
+@if (options.ShowValidation)
+{
+<wv-validation message="@validation.Message" errors="@validation.ToErrorList()"></wv-validation>
+}
+<wv-form method="@options.Method" id="@options.Id" name="@options.Name" label-mode="@options.LabelMode" 
+	mode="@options.Mode" action="@action" validation-errors="@validation.ToErrorList()" class="@options.Class" is-visible="(bool)ViewBag.IsVisible">
+	@foreach (var childNode in node.Nodes) {
+		var nodeComponentName = "";
+		if (childNode != null) {
+			var nameArray = childNode.ComponentName.Split('.');
+			nodeComponentName = nameArray[nameArray.Length - 1];
+		}
+		if (!String.IsNullOrWhiteSpace(nodeComponentName))
+		{
+			var childOptions = PageUtils.ConvertStringToJObject(childNode.Options.ToString());
+			var pcContext = new PageComponentContext(childNode, componentContext.DataModel, ComponentMode.Display, childOptions,componentContext.Items);
+			@await Component.InvokeAsync(nodeComponentName, new { context = pcContext })
+		}
+	}
+</wv-form>

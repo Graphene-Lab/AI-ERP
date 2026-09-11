@@ -1,0 +1,10 @@
+﻿
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@{
+	var options = (PcHtmlBlock.PcHtmlBlockOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+}
+<div class="p-1">@Html.Raw(ViewBag.ProccessedHtml)</div>

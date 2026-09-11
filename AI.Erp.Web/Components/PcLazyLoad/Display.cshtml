@@ -1,0 +1,20 @@
+﻿
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
+@using Newtonsoft.Json;
+@{
+	var options = (PcLazyLoad.PcLazyLoadOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+	var erpRequest = (ErpRequestContext)ViewBag.RequestContext;
+	var apiUrlRoot = (string)ViewBag.ApiUrlRoot;
+}
+@foreach (var childNode in node.Nodes)
+{
+	<wv-lazyload site-root-url="@apiUrlRoot" component-name="@childNode.ComponentName" page-id="@erpRequest.Page.Id" node-id="@childNode.Id"
+		record-id="@erpRequest.RecordId" entity-id="@(erpRequest.Entity != null ? erpRequest.Entity.Id.ToString() : "")"
+		node-options="@childNode.Options">
+	</wv-lazyload>
+}

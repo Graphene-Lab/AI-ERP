@@ -1,0 +1,32 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Api.Models;
+@using AI.Erp.Web;
+@using AI.Erp.Plugins.Project.Components;
+
+@{
+	var erpRequestContext = (ErpRequestContext)ViewBag.RequestContext;
+	var options = (PcPostList.PcPostListOptions)ViewBag.Options;
+	var currentUser = (ErpUser)ViewBag.CurrentUser;
+	var records = (List<EntityRecord>)ViewBag.Records;
+	var currentUserName = "guest";
+	var currentUserImagePath = "/_content/AI.Erp.Web/assets/avatar.png";
+	if (currentUser != null)
+	{
+		currentUserName = currentUser.Username;
+		if (!String.IsNullOrWhiteSpace(currentUser.Image))
+		{
+			currentUserImagePath = currentUser.Image;
+		}
+	}
+}
+
+<script type="module" src="/_content/AI.Erp.Plugins.Project/js/wv-post-list/wv-post-list.esm.js"></script>
+<script nomodule src="/_content/AI.Erp.Plugins.Project/js/wv-post-list/wv-post-list.js"></script>
+
+  <wv-post-list related-record-id="@ViewBag.RelatedRecordId" related-records='@ViewBag.RelatedRecordsJson'
+	site-root-url="@ViewBag.SiteRootUrl"
+	posts='@ViewBag.RecordsJson'
+	current-user='@ViewBag.CurrentUserJson'></wv-post-list>

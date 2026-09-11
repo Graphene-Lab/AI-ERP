@@ -51,11 +51,11 @@ This is an example of attaching to a site page type hook
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Web.Hooks;
-using WebVella.Erp.Web.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Web.Hooks;
+using AI.Erp.Web.Models;
 
-namespace WebVella.Erp.Plugins.SDK.Hooks.Page
+namespace AI.Erp.Plugins.SDK.Hooks.Page
 {
 	[HookAttachment] // <<<<< Add key parameter to target a custom hook handler
 	public class SomePageHook : ISitePageHook

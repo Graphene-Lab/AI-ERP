@@ -1,0 +1,23 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using AI.Erp.Api;
+using AI.Erp.Api.Models;
+
+namespace AI.Erp.Web.Services
+{
+	public class MetaService
+	{
+		public List<SelectOption> GetEntitiesAsSelectOptions() {
+			var entities = new EntityManager().ReadEntities().Object;
+			var result = new List<SelectOption>();
+			foreach (var entity in entities)
+			{
+				result.Add(new SelectOption(entity.Id.ToString(), entity.Name));
+			}
+
+			return result.OrderBy(x => x.Value).ToList();
+		}
+	}
+}

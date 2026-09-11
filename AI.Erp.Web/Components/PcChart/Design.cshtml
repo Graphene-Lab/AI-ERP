@@ -1,0 +1,20 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using WebVella.TagHelpers.Models;
+@{
+	var options = (PcChart.PcChartOptions)ViewBag.Options;
+	var node = (PageBodyNode)ViewBag.Node;
+	var datasets = (List<WvChartDataset>)ViewBag.DataSets;
+	var labels = (List<string>)ViewBag.Labels;
+	var showLegend = (bool)ViewBag.ShowLegend;
+	var height = (string)ViewBag.Height;
+	var width = (string)ViewBag.Width;
+	var type = (WvChartType)ViewBag.Type;
+}
+<div class="p-1">
+	<wv-chart type="@type" datasets="@datasets" height="@height" width="@width" show-legend="@showLegend" labels="@labels"></wv-chart>
+</div>

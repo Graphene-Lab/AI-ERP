@@ -1,0 +1,17 @@
+﻿@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@addTagHelper *, WebVella.TagHelpers
+@using AI.Erp.Web.Utils;
+@using AI.Erp.Web;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Plugins.Project.Components;
+@{
+	var options = (PcProjectWidgetBudgetChart.PcProjectWidgetBudgetChartOptions)ViewBag.Options;
+	var erpRequest = (ErpRequestContext)ViewBag.RequestContext;
+}
+<wv-row>
+	<wv-column span="6">
+		<wv-field-datasource name="project_id" value="@options.ProjectId" label-text="Project Id" page-id="erpRequest.Page.Id"></wv-field-datasource>
+	</wv-column>
+</wv-row>
+

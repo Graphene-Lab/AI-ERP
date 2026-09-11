@@ -1,11 +1,11 @@
 ﻿<!--{"sort_order":2, "name": "create-your-own", "label": "Create your own"}-->
-# Create a Plugin for the WebVella Erp
+# Create a Plugin for the AI Erp
 
 To create a Plugin you need to add to the solution a Razor Class Library that has specific structure and requirements.
 
 ## Plugin name
 
-The naming convention that we follow when creating a plugin is: WebVella.Erp.Plugins.PluginName. You can also add a prefix before the plugin name if needed.
+The naming convention that we follow when creating a plugin is: AI.Erp.Plugins.PluginName. You can also add a prefix before the plugin name if needed.
 
 ## Folder Structure
 
@@ -28,7 +28,7 @@ You can create this file as an ordinary class, but there are several requirement
 
 #### Requirement 1: The Namespace should correspond to the plugin library name
 ```csharp
-namespace WebVella.Erp.Plugins.SDK
+namespace AI.Erp.Plugins.SDK
 ```
 
 #### Requirement 2: Should inherit `ErpPlugin`

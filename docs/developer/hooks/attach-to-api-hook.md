@@ -1,5 +1,5 @@
 ﻿<!--{"sort_order":2, "name": "attach-to-api-hook", "label": "Attach to an API hook"}-->
-# Attach to a WebVella ERP API Hook
+# Attach to a AI ERP API Hook
 
 To create an API Hook attachment, you need to create a class file in your plugin's Hooks folder. In order for the system to reference your hook attachment, it needs to fulfill several requirements.
 
@@ -56,12 +56,12 @@ public void OnPreCreateRecord(string entityName, EntityRecord record, List<Error
 ```csharp
 using System;
 using System.Collections.Generic;
-using WebVella.Erp.Api;
-using WebVella.Erp.Api.Models;
-using WebVella.Erp.Hooks;
-using WebVella.Erp.Plugins.Next.Services;
+using AI.Erp.Api;
+using AI.Erp.Api.Models;
+using AI.Erp.Hooks;
+using AI.Erp.Plugins.Next.Services;
 
-namespace WebVella.Erp.Plugins.Next.Hooks.Api
+namespace AI.Erp.Plugins.Next.Hooks.Api
 {
 	[HookAttachment("task")]
 	public class TaskHook : IErpPreCreateRecordHook, IErpPreUpdateRecordHook, IErpPreDeleteRecordHook,

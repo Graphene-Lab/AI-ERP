@@ -2,7 +2,7 @@
 # Overview
 
 ## Purpose
-WebVella ERP is a set of tools used to model and manage specific business data. In this context an entity is a piece of data defined by a meta, set of fields and a set of relations to other entities. It is very similar to the Entity-Relation model of the standard relational databases. The primary purpose of the entities is to provide an easier and maintainable method of defining data objects, work with them and limit the access to them. The system will automatically apply those rules to all API based requests. It will also create and maintain the optimal database structure. You can create or modify the entity meta and the entity records data through a server API or a web API.
+AI ERP is a set of tools used to model and manage specific business data. In this context an entity is a piece of data defined by a meta, set of fields and a set of relations to other entities. It is very similar to the Entity-Relation model of the standard relational databases. The primary purpose of the entities is to provide an easier and maintainable method of defining data objects, work with them and limit the access to them. The system will automatically apply those rules to all API based requests. It will also create and maintain the optimal database structure. You can create or modify the entity meta and the entity records data through a server API or a web API.
 
 ## Entity meta
 

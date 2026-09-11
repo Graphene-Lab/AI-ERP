@@ -1,5 +1,5 @@
 ﻿<!--{"sort_order":2, "name": "create-your-own", "label": "Create your own"}-->
-# Create a Page Component for WebVella Erp
+# Create a Page Component for AI Erp
 
 To create a Page Component you need to add a ViewComponent to your project that has specific structure and requirements. 
 
@@ -108,7 +108,7 @@ This attribute is used to define the component's meta, that will be used by the 
 +-------------------------------+-----------------------------------+
 
 ```csharp
-[PageComponent(Label = "Chart", Library = "WebVella", Description = "Line,area,pie, doughnut, bar, horizontal bar", Version = "0.0.1", IconClass = "fas fa-chart-pie")]
+[PageComponent(Label = "Chart", Library = "AI", Description = "Line,area,pie, doughnut, bar, horizontal bar", Version = "0.0.1", IconClass = "fas fa-chart-pie")]
 ```
 
 #### Requirement 2: Inherit the `PageComponent` class
@@ -170,7 +170,7 @@ options = JsonConvert.DeserializeObject<PcChartOptions>(context.Options.ToString
 ```
 #### Requirement 7: Implement the rendering modes
 
-A component in WebVella ERP should support the following rendering modes as defined by the `enum ComponentMode`: Display, Design, Options, Help, with the addition of an Error view.
+A component in AI ERP should support the following rendering modes as defined by the `enum ComponentMode`: Display, Design, Options, Help, with the addition of an Error view.
 
 #### Requirement 8: Component namespace convention
 
@@ -185,14 +185,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using WebVella.Erp.Exceptions;
-using WebVella.Erp.Web.Models;
-using WebVella.Erp.Web.Services;
-using WebVella.Erp.Web.Utils;
+using AI.Erp.Exceptions;
+using AI.Erp.Web.Models;
+using AI.Erp.Web.Services;
+using AI.Erp.Web.Utils;
 
-namespace WebVella.Erp.Web.Components
+namespace AI.Erp.Web.Components
 {
-	[PageComponent(Label = "Chart", Library = "WebVella", Description = "Line,area,pie, doughnut, bar, horizontal bar", Version = "0.0.1", IconClass = "fas fa-chart-pie")]
+	[PageComponent(Label = "Chart", Library = "AI", Description = "Line,area,pie, doughnut, bar, horizontal bar", Version = "0.0.1", IconClass = "fas fa-chart-pie")]
 	public class PcChart : PageComponent
 	{
 		protected ErpRequestContext ErpRequestContext { get; set; }
@@ -300,11 +300,11 @@ It should mimic the appearance of the "Display" mode, either by presenting live 
 ### Example without nesting 
 
 ```html
-@addTagHelper *, WebVella.Erp.Plugins.Core
-@addTagHelper *, WebVella.Erp.Web
-@using WebVella.Erp.Web.Components;
-@using WebVella.Erp.Web.Models;
-@using WebVella.Erp.Web;
+@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
 @{
 	var options = (PcChart.PcChartOptions)ViewBag.Options;
 	var node = (PageBodyNode)ViewBag.Node;
@@ -323,11 +323,11 @@ It should mimic the appearance of the "Display" mode, either by presenting live 
 Sometimes you need to provide the option of other components to be nested in yours. This is achieved by defining a nesting container in your component's Design view. Each of such containers should have unique name within the component, so you can later get the components for each container.
 
 ```html
-@addTagHelper *, WebVella.Erp.Plugins.Core
-@addTagHelper *, WebVella.Erp.Web
-@using WebVella.Erp.Web.Components;
-@using WebVella.Erp.Web.Models;
-@using WebVella.Erp.Web;
+@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
 @{
 	var options = (PcChart.PcChartOptions)ViewBag.Options;
 	var node = (PageBodyNode)ViewBag.Node;
@@ -350,11 +350,11 @@ This view is presented when the component operates in its main purpose - display
 ### Example without nesting
 
 ```html
-@addTagHelper *, WebVella.Erp.Plugins.Core
-@addTagHelper *, WebVella.Erp.Web
-@using WebVella.Erp.Web.Components;
-@using WebVella.Erp.Web.Models;
-@using WebVella.Erp.Web;
+@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
 @{
 	var options = (PcChart.PcChartOptions)ViewBag.Options;
 	var node = (PageBodyNode)ViewBag.Node;
@@ -369,11 +369,11 @@ This view is presented when the component operates in its main purpose - display
 ### Example with nesting
 
 ```html
-@addTagHelper *, WebVella.Erp.Plugins.Core
-@addTagHelper *, WebVella.Erp.Web
-@using WebVella.Erp.Web.Components;
-@using WebVella.Erp.Web.Models;
-@using WebVella.Erp.Web;
+@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
 @{
 	var options = (PcChart.PcChartOptions)ViewBag.Options;
 	var node = (PageBodyNode)ViewBag.Node;
@@ -412,11 +412,11 @@ As the saving is automatically done by the system, you need to follow a rule whe
 **Javascript**: You can initialize any javascript by implementing the events as presented in `service.js` file.
 
 ```html
-@addTagHelper *, WebVella.Erp.Plugins.Core
-@addTagHelper *, WebVella.Erp.Web
-@using WebVella.Erp.Web.Components;
-@using WebVella.Erp.Web.Models;
-@using WebVella.Erp.Web;
+@addTagHelper *, AI.Erp.Plugins.Core
+@addTagHelper *, AI.Erp.Web
+@using AI.Erp.Web.Components;
+@using AI.Erp.Web.Models;
+@using AI.Erp.Web;
 @{
 	var options = (PcChart.PcChartOptions)ViewBag.Options;
 	var node = (PageBodyNode)ViewBag.Node;
@@ -470,16 +470,16 @@ This file will be automatically included and executed by the system during PageB
 
 	$(function () {
 		document.addEventListener("WvPbManager_Design_Loaded", function (event) {
-			if (event && event.payload && event.payload.component_name === "WebVella.Erp.Web.Components.PcChart"){
-				console.log("WebVella.Erp.Web.Components.PcChart Design loaded");
+			if (event && event.payload && event.payload.component_name === "AI.Erp.Web.Components.PcChart"){
+				console.log("AI.Erp.Web.Components.PcChart Design loaded");
 			}
 		});
 	});
 
 	$(function () {
 		document.addEventListener("WvPbManager_Design_Unloaded", function (event) {
-			if (event && event.payload && event.payload.component_name === "WebVella.Erp.Web.Components.PcChart"){
-				console.log("WebVella.Erp.Web.Components.PcChart Design unloaded");
+			if (event && event.payload && event.payload.component_name === "AI.Erp.Web.Components.PcChart"){
+				console.log("AI.Erp.Web.Components.PcChart Design unloaded");
 			}
 		});
 	});
@@ -487,16 +487,16 @@ This file will be automatically included and executed by the system during PageB
 
 	$(function () {
 		document.addEventListener("WvPbManager_Options_Loaded", function (event) {
-			if (event && event.payload && event.payload.component_name === "WebVella.Erp.Web.Components.PcChart") {
-				console.log("WebVella.Erp.Web.Components.PcChart Options loaded");
+			if (event && event.payload && event.payload.component_name === "AI.Erp.Web.Components.PcChart") {
+				console.log("AI.Erp.Web.Components.PcChart Options loaded");
 			}
 		});
 	});
 
 	$(function () {
 		document.addEventListener("WvPbManager_Options_Unloaded", function (event) {
-			if (event && event.payload && event.payload.component_name === "WebVella.Erp.Web.Components.PcChart"){
-				console.log("WebVella.Erp.Web.Components.PcChart Options unloaded");
+			if (event && event.payload && event.payload.component_name === "AI.Erp.Web.Components.PcChart"){
+				console.log("AI.Erp.Web.Components.PcChart Options unloaded");
 			}
 		});
 	});

@@ -1,6 +1,6 @@
 del *.nupkg
-nuget pack .\WebVella.Erp\WebVella.Erp.nuspec
-nuget pack .\WebVella.Erp.Web\WebVella.Erp.Web.nuspec
-nuget pack .\WebVella.Erp.Plugins.Sdk\WebVella.Erp.Plugins.Sdk.nuspec
-nuget pack .\WebVella.Erp.Plugins.Mail\WebVella.Erp.Plugins.Mail.nuspec
+nuget pack .\AI.Erp\AI.Erp.nuspec
+nuget pack .\AI.Erp.Web\AI.Erp.Web.nuspec
+nuget pack .\AI.Erp.Plugins.Sdk\AI.Erp.Plugins.Sdk.nuspec
+nuget pack .\AI.Erp.Plugins.Mail\AI.Erp.Plugins.Mail.nuspec
 start .\
