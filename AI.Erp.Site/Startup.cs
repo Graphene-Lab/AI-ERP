@@ -15,6 +15,7 @@ using System.IO;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.IO.Compression;
 using AI.Erp.Plugins.SDK;
+using ErpAgentApi;
 using AI.Erp.Web;
 using AI.Erp.Web.Middleware;
 using System.Text;
@@ -181,6 +182,7 @@ namespace AI.Erp.Site
 
 			app
 			.UseErpPlugin<SdkPlugin>()
+			.UseErpPlugin<AgentApiPlugin>()
             .UseErp()
             .UseErpMiddleware()
             .UseJwtMiddleware();

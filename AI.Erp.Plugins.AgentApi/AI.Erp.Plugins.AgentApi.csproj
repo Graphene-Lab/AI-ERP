@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Agent API plugin — dual-target (fork / vendor).
+    Build the fork form (default):   dotnet build  (or -p:ErpFlavor=fork)
+    Build the vendor form:          dotnet build -p:ErpFlavor=vendor
+    The source refers to the core ONLY through the aliases ErpCore / ErpApi / ErpModels /
+    ErpEql (see ARCHITECTURE.md). No core namespace is ever written literally in the source.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Server-side plugin: only the public REST surface matters, not docs on every member. -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+
+    <!-- fork is the default target so the plugin drops into this repo's solution with no flag. -->
+    <ErpFlavor Condition="'$(ErpFlavor)' == ''">fork</ErpFlavor>
+
+    <AssemblyName Condition="'$(ErpFlavor)' == 'fork'">AI.Erp.Plugins.AgentApi</AssemblyName>
+    <AssemblyName Condition="'$(ErpFlavor)' == 'vendor'">WebVella.Erp.Plugins.AgentApi</AssemblyName>
+    <PackageId Condition="'$(ErpFlavor)' == 'fork'">AI.Erp.Plugins.AgentApi</PackageId>
+    <PackageId Condition="'$(ErpFlavor)' == 'vendor'">WebVella.Erp.Plugins.AgentApi</PackageId>
+
+    <Version>1.0.0</Version>
+    <Description>Agent API plugin: exposes the ERP record, entity and EQL managers over a JWT-secured REST surface for AI-agent control. Dual-target: fork (AI.Erp) and vendor (WebVella.Erp).</Description>
+    <Authors>Andrea Bruno</Authors>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- FORK target: reference the local core project and alias its namespaces. -->
+  <ItemGroup Condition="'$(ErpFlavor)' == 'fork'">
+    <ProjectReference Include="..\AI.Erp\AI.Erp.csproj" />
+    <Using Include="AI.Erp" Alias="ErpCore" />
+    <Using Include="AI.Erp.Api" Alias="ErpApi" />
+    <Using Include="AI.Erp.Api.Models" Alias="ErpModels" />
+    <Using Include="AI.Erp.Eql" Alias="ErpEql" />
+  </ItemGroup>
+
+  <!-- VENDOR target: reference the upstream package and alias its namespaces. -->
+  <ItemGroup Condition="'$(ErpFlavor)' == 'vendor'">
+    <PackageReference Include="WebVella.Erp" Version="*" />
+    <Using Include="WebVella.Erp" Alias="ErpCore" />
+    <Using Include="WebVella.Erp.Api" Alias="ErpApi" />
+    <Using Include="WebVella.Erp.Api.Models" Alias="ErpModels" />
+    <Using Include="WebVella.Erp.Eql" Alias="ErpEql" />
+  </ItemGroup>
+
+</Project>

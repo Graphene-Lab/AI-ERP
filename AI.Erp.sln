@@ -52,6 +52,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AI.Erp.Site.MicrosoftCDM", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AI.Erp.Plugins.MicrosoftCDM", "AI.Erp.Plugins.MicrosoftCDM\AI.Erp.Plugins.MicrosoftCDM.csproj", "{A7212EDA-DEEE-464D-9C38-D6E09B0B8516}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AI.Erp.Plugins.AgentApi", "AI.Erp.Plugins.AgentApi\AI.Erp.Plugins.AgentApi.csproj", "{B7E4A1C2-3D5F-4A6B-8C9D-0E1F2A3B4C5D}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AI.Erp.WebAssembly", "AI.Erp.WebAssembly\Client\AI.Erp.WebAssembly.csproj", "{A59872C0-8CE4-4705-9981-CF4087840830}"
 EndProject
 Global
@@ -124,6 +126,10 @@ Global
 		{A7212EDA-DEEE-464D-9C38-D6E09B0B8516}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A7212EDA-DEEE-464D-9C38-D6E09B0B8516}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A7212EDA-DEEE-464D-9C38-D6E09B0B8516}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7E4A1C2-3D5F-4A6B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7E4A1C2-3D5F-4A6B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7E4A1C2-3D5F-4A6B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7E4A1C2-3D5F-4A6B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A59872C0-8CE4-4705-9981-CF4087840830}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A59872C0-8CE4-4705-9981-CF4087840830}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A59872C0-8CE4-4705-9981-CF4087840830}.Release|Any CPU.ActiveCfg = Release|Any CPU

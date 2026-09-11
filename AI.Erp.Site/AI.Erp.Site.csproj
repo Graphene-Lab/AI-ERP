@@ -40,6 +40,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\AI.Erp.Plugins.SDK\AI.Erp.Plugins.SDK.csproj" />
+		<ProjectReference Include="..\AI.Erp.Plugins.AgentApi\AI.Erp.Plugins.AgentApi.csproj" />
 		<ProjectReference Include="..\AI.Erp.Web\AI.Erp.Web.csproj" />
 		<ProjectReference Include="..\AI.Erp\AI.Erp.csproj" />
 	</ItemGroup>
