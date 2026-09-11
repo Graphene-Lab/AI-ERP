@@ -44,9 +44,11 @@
     <Using Include="AI.Erp.Eql" Alias="ErpEql" />
   </ItemGroup>
 
-  <!-- VENDOR target: reference the upstream package and alias its namespaces. -->
+  <!-- VENDOR target: reference the upstream package and alias its namespaces.
+       Pinned to the exact version that upstream/master declares, so the vendor
+       flavour is reproducible and cannot float to a newer breaking release. -->
   <ItemGroup Condition="'$(ErpFlavor)' == 'vendor'">
-    <PackageReference Include="WebVella.Erp" Version="*" />
+    <PackageReference Include="WebVella.Erp" Version="[1.8.6]" />
     <Using Include="WebVella.Erp" Alias="ErpCore" />
     <Using Include="WebVella.Erp.Api" Alias="ErpApi" />
     <Using Include="WebVella.Erp.Api.Models" Alias="ErpModels" />

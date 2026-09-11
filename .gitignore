@@ -221,3 +221,4 @@ _Pvt_Extensions
 **/Properties/launchSettings.json
 /.idea/.idea.AI.Erp/.idea
 /.qwen/
+__pycache__/
