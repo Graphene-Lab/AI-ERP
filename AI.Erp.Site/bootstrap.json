@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "comment": "First-run custom for a sample trading company. Applied automatically by the AgentApi plugin on a fresh database. Money fields are 'number'. Relationships use Guid foreign-key fields (set directly on the record).",
+
+  "entities": [
+    {
+      "name": "company", "label": "Company", "labelPlural": "Companies",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true, "unique": true },
+        { "name": "legal_name", "type": "text", "label": "Legal Name" },
+        { "name": "vat_number", "type": "text", "label": "VAT Number" },
+        { "name": "address", "type": "multiline", "label": "Address" },
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "email", "type": "email", "label": "Email" },
+        { "name": "phone", "type": "phone", "label": "Phone" },
+        { "name": "currency", "type": "text", "label": "Currency" }
+      ]
+    },
+    {
+      "name": "customer", "label": "Customer", "labelPlural": "Customers",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true, "unique": true },
+        { "name": "email", "type": "email", "label": "Email" },
+        { "name": "phone", "type": "phone", "label": "Phone" },
+        { "name": "billing_address", "type": "multiline", "label": "Billing Address" },
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "vat_number", "type": "text", "label": "VAT Number" },
+        { "name": "category", "type": "select", "label": "Category", "options": ["retail", "wholesale", "vip"], "defaultValue": "retail" },
+        { "name": "credit_limit", "type": "number", "label": "Credit Limit", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "product", "label": "Product", "labelPlural": "Products",
+      "fields": [
+        { "name": "sku", "type": "text", "label": "SKU", "required": true, "unique": true },
+        { "name": "name", "type": "text", "label": "Name", "required": true },
+        { "name": "description", "type": "multiline", "label": "Description" },
+        { "name": "category", "type": "text", "label": "Category" },
+        { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "unit_of_measure", "type": "text", "label": "Unit of Measure" },
+        { "name": "stock_quantity", "type": "number", "label": "Stock Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "reorder_point", "type": "number", "label": "Reorder Point", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "active", "type": "bool", "label": "Active" }
+      ]
+    },
+    {
+      "name": "supplier", "label": "Supplier", "labelPlural": "Suppliers",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true, "unique": true },
+        { "name": "contact_name", "type": "text", "label": "Contact Name" },
+        { "name": "email", "type": "email", "label": "Email" },
+        { "name": "phone", "type": "phone", "label": "Phone" },
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "sales_order", "label": "Sales Order", "labelPlural": "Sales Orders",
+      "fields": [
+        { "name": "order_number", "type": "text", "label": "Order Number", "required": true, "unique": true },
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "order_date", "type": "date", "label": "Order Date" },
+        { "name": "required_date", "type": "date", "label": "Required Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "confirmed", "shipped", "cancelled"], "defaultValue": "draft" },
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "total", "type": "number", "label": "Total", "decimalPlaces": 2 },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "sales_order_line", "label": "Sales Order Line", "labelPlural": "Sales Order Lines",
+      "fields": [
+        { "name": "sales_order_id", "type": "guid", "label": "Sales Order", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2 },
+        { "name": "discount_percent", "type": "percent", "label": "Discount %", "decimalPlaces": 2 },
+        { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "purchase_order", "label": "Purchase Order", "labelPlural": "Purchase Orders",
+      "fields": [
+        { "name": "po_number", "type": "text", "label": "PO Number", "required": true, "unique": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "order_date", "type": "date", "label": "Order Date" },
+        { "name": "expected_date", "type": "date", "label": "Expected Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "ordered", "received", "cancelled"], "defaultValue": "draft" },
+        { "name": "total", "type": "number", "label": "Total", "decimalPlaces": 2 },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "purchase_order_line", "label": "Purchase Order Line", "labelPlural": "Purchase Order Lines",
+      "fields": [
+        { "name": "purchase_order_id", "type": "guid", "label": "Purchase Order", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2 },
+        { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "invoice", "label": "Invoice", "labelPlural": "Invoices",
+      "fields": [
+        { "name": "invoice_number", "type": "text", "label": "Invoice Number", "required": true, "unique": true },
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "sales_order_id", "type": "guid", "label": "Sales Order" },
+        { "name": "issue_date", "type": "date", "label": "Issue Date" },
+        { "name": "due_date", "type": "date", "label": "Due Date" },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "sent", "paid", "partial", "overdue", "cancelled"], "defaultValue": "draft" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "payment", "label": "Payment", "labelPlural": "Payments",
+      "fields": [
+        { "name": "payment_ref", "type": "text", "label": "Payment Reference", "required": true, "unique": true },
+        { "name": "invoice_id", "type": "guid", "label": "Invoice", "required": true },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "payment_date", "type": "date", "label": "Payment Date" },
+        { "name": "method", "type": "select", "label": "Method", "options": ["bank", "card", "cash"], "defaultValue": "bank" }
+      ]
+    }
+  ],
+
+  "seed": {
+    "company": [
+      { "name": "Northwind Traders", "legal_name": "Northwind Traders S.r.l.", "vat_number": "IT01234560123", "address": "Via Roma 10", "city": "Milan", "country": "Italy", "email": "info@northwind.example", "phone": "+39 02 1234567", "currency": "EUR" }
+    ],
+    "customer": [
+      { "name": "Alpine Coffee Roasters", "email": "orders@alpinecoffee.example", "phone": "+39 012 345678", "city": "Turin", "country": "Italy", "vat_number": "IT02222220111", "category": "wholesale", "credit_limit": 20000 },
+      { "name": "Bavarian Deli", "email": "buy@bavariandeli.example", "phone": "+49 89 112233", "city": "Munich", "country": "Germany", "vat_number": "DE123456789", "category": "retail", "credit_limit": 5000 },
+      { "name": "City Books Ltd", "email": "orders@citybooks.example", "phone": "+44 20 7946 0000", "city": "London", "country": "United Kingdom", "category": "retail", "credit_limit": 8000 },
+      { "name": "Delta Office Supplies", "email": "procure@deltaoffice.example", "phone": "+1 212 555 0100", "city": "New York", "country": "United States", "category": "vip", "credit_limit": 50000 },
+      { "name": "Evergreen Grocers", "email": "hello@evergreen.example", "phone": "+33 1 22 33 44 55", "city": "Paris", "country": "France", "category": "wholesale", "credit_limit": 15000 }
+    ],
+    "product": [
+      { "sku": "SKU-1001", "name": "Espresso Beans 1kg", "category": "Coffee", "unit_price": 18.50, "unit_cost": 9.00, "unit_of_measure": "bag", "stock_quantity": 240, "reorder_point": 50, "active": true },
+      { "sku": "SKU-1002", "name": "Ground Coffee 500g", "category": "Coffee", "unit_price": 11.00, "unit_cost": 5.50, "unit_of_measure": "pack", "stock_quantity": 180, "reorder_point": 40, "active": true },
+      { "sku": "SKU-2001", "name": "Paper Cups 100pk", "category": "Packaging", "unit_price": 6.90, "unit_cost": 3.20, "unit_of_measure": "pack", "stock_quantity": 500, "reorder_point": 100, "active": true },
+      { "sku": "SKU-2002", "name": "Napkins 200pk", "category": "Packaging", "unit_price": 4.50, "unit_cost": 2.00, "unit_of_measure": "pack", "stock_quantity": 30, "reorder_point": 60, "active": true },
+      { "sku": "SKU-3001", "name": "Ceramic Mug", "category": "Tableware", "unit_price": 9.99, "unit_cost": 4.00, "unit_of_measure": "unit", "stock_quantity": 120, "reorder_point": 30, "active": true },
+      { "sku": "SKU-3002", "name": "Glass Tumbler", "category": "Tableware", "unit_price": 7.50, "unit_cost": 3.00, "unit_of_measure": "unit", "stock_quantity": 90, "reorder_point": 25, "active": true },
+      { "sku": "SKU-4001", "name": "A4 Paper Ream", "category": "Office", "unit_price": 5.20, "unit_cost": 2.80, "unit_of_measure": "ream", "stock_quantity": 600, "reorder_point": 150, "active": true },
+      { "sku": "SKU-4002", "name": "Ballpoint Pens 50pk", "category": "Office", "unit_price": 8.00, "unit_cost": 3.50, "unit_of_measure": "pack", "stock_quantity": 200, "reorder_point": 50, "active": true },
+      { "sku": "SKU-5001", "name": "Green Tea 250g", "category": "Tea", "unit_price": 12.00, "unit_cost": 6.00, "unit_of_measure": "pack", "stock_quantity": 75, "reorder_point": 20, "active": true },
+      { "sku": "SKU-5002", "name": "Herbal Tea 250g", "category": "Tea", "unit_price": 13.50, "unit_cost": 6.50, "unit_of_measure": "pack", "stock_quantity": 15, "reorder_point": 20, "active": true },
+      { "sku": "SKU-6001", "name": "Chocolate Bar 100g", "category": "Snacks", "unit_price": 2.50, "unit_cost": 1.10, "unit_of_measure": "unit", "stock_quantity": 400, "reorder_point": 100, "active": true },
+      { "sku": "SKU-9999", "name": "Discontinued Widget", "category": "Legacy", "unit_price": 1.00, "unit_cost": 0.50, "unit_of_measure": "unit", "stock_quantity": 0, "reorder_point": 0, "active": false }
+    ],
+    "supplier": [
+      { "name": "Global Packaging Co", "contact_name": "Laura Bianchi", "email": "sales@globalpack.example", "phone": "+39 030 998877", "city": "Brescia", "country": "Italy" },
+      { "name": "Prime Coffee Importers", "contact_name": "Marco Rossi", "email": "orders@primecoffee.example", "phone": "+39 011 5554433", "city": "Genoa", "country": "Italy" },
+      { "name": "OfficePro Distribution", "contact_name": "John Smith", "email": "supply@officepro.example", "phone": "+1 415 555 0199", "city": "San Francisco", "country": "United States" },
+      { "name": "TeaLeaf Traders", "contact_name": "Chen Wei", "email": "hello@tealeaf.example", "phone": "+86 21 5555 0000", "city": "Shanghai", "country": "China" }
+    ]
+  }
+}
