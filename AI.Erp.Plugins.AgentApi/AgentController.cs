@@ -731,7 +731,31 @@ public class AgentController : Controller
     {
         try
         {
-            return Json(AgentResponse.Ok(new { message = verb, result = action() }));
+            // Run the whole composed operation in one database transaction so a failure in a
+            // later step rolls back the earlier writes instead of leaving partial records
+            // (orphaned headers, half-moved stock). RecordManager binds to DbContext.Current,
+            // so once the context is in a transactional state every write inside the operation
+            // joins it (their own BeginTransaction calls become savepoints).
+            var ctx = ErpCore.Database.DbContext.Current;
+            if (ctx == null)
+                return Json(AgentResponse.Ok(new { message = verb, result = action() }));
+
+            object result;
+            using (var outer = ctx.CreateConnection())
+            {
+                outer.BeginTransaction();
+                try
+                {
+                    result = action();
+                    outer.CommitTransaction();
+                }
+                catch
+                {
+                    try { outer.RollbackTransaction(); } catch { }
+                    throw;
+                }
+            }
+            return Json(AgentResponse.Ok(new { message = verb, result }));
         }
         catch (FormatException)
         {
