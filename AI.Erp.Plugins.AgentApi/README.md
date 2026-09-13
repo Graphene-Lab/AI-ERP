@@ -28,11 +28,19 @@ same small `AgentResponse` body: `{ success, data, error, errors }`.
 |---|---|---|
 | `GET` | `schema` | Lists every entity and its fields (name, label, type, required). |
 | `GET` | `schema/{entity}` | Lists the fields of one entity. |
+| `GET` | `setup-status` | Install/setup state: installed, entity count, per-entity seed counts, pending changes. |
+| `POST` | `reprovision` | Re-apply `bootstrap.json` now (idempotent), without a restart. |
 | `POST` | `query` | Runs an EQL `SELECT`. Body `{ eql, parameters:[{name,value}] }`. |
 | `POST` | `records/{entity}` | Creates a record from a JSON object of field values. |
 | `PATCH` | `records/{entity}/{id}` | Updates a record by id. |
 | `DELETE` | `records/{entity}/{id}` | Deletes a record by id. |
 | `POST` | `relations` | Adds or removes a many-to-many link. Body `{ relationId, originId, targetId, remove }`. |
+
+On top of these, a set of **composed business operations** lives under `composed/...`. Each one
+call does many steps inside the ERP: place an order, deliver it, invoice it, collect a payment,
+run the purchase-to-pay cycle, move and reserve stock, and the manager reports (sales by
+customer/product, purchases by supplier, receivables aging). The full list, with parameters, is
+documented on the agent side in **[ErpTool](https://github.com/Graphene-Lab/ErpTool)**.
 
 The JWT comes from the host endpoint `POST api/v3/en_US/auth/jwt/token`. For reads you can also
 use the ERP built-in `POST api/v3/en_US/eql`.

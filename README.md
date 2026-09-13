@@ -29,7 +29,10 @@ which types exist and which fields they have — and then work on the data itsel
 
 * search the records;
 * create new records, change them and delete them;
-* connect records to each other (for example, link a project to a customer).
+* connect records to each other (for example, link a project to a customer);
+* run whole business operations in one step — place an order, deliver it, invoice it and
+  collect a payment — or the full purchase-to-pay cycle;
+* read reports, such as sales by customer or product and the receivables aging.
 
 You ask the agent in normal language ("add a customer named ...", "which projects are late?"),
 and the agent performs the real operations inside the ERP. Every operation runs as a normal ERP
@@ -46,6 +49,15 @@ with the agent and let it work on the ERP. You do not need to use the ERP screen
 The agent can read the data and change it on its own. Because of this, routine tasks can run
 automatically, without a person doing every step by hand. For example, recurring updates to
 records can be left to the agent instead of being done manually.
+
+## Documentation
+
+* [First-run setup](docs/FIRST-RUN-SETUP.md) — install and configure the ERP with no human installer.
+* [Configuration](docs/CONFIGURATION.md) — the ERP settings and the agent tool settings.
+* [Integration with AgentBridge](docs/AGENTBRIDGE-INTEGRATION.md) — how the agent drives the ERP through ErpTool.
+* [AgentApi architecture](AI.Erp.Plugins.AgentApi/ARCHITECTURE.md) — the REST API and the fork/vendor build.
+
+The agent-side tool is [ErpTool](https://github.com/Graphene-Lab/ErpTool).
 
 ## Related repositories
 

@@ -171,6 +171,19 @@ start. New entities and new seed records are added. Existing ones are skipped.
 Note: the setup only adds. It does not delete or rename existing entities or fields.
 For a clean slate, drop and recreate the database, then start the app.
 
+## Check and re-apply the setup (no restart)
+
+You or the agent can check the setup state and re-apply it without restarting the app.
+
+- `GET api/v3.0/p/agent/setup-status` — returns whether the setup is applied, the number of
+  business entities, the record count of each seeded entity, and whether a change is pending
+  (the file hash differs from the applied hash).
+- `POST api/v3.0/p/agent/reprovision` — applies `bootstrap.json` now. It is idempotent: if
+  the file has not changed, it does nothing and says so. Use it after editing the file to push
+  new entities or seed without a restart.
+
+In `ErpTool` these are the `SetupStatus()` and `Reprovision()` methods.
+
 ## Security note
 
 The default admin account uses a weak password (`erp`). This is only for first-run and
@@ -202,4 +215,6 @@ REST API (`api/v3.0/p/agent/...`). The agent logs in with the admin account. The
 | `invoice`            | An invoice (customer, dates, amount, status).              |
 | `payment`            | A payment against an invoice (amount, date, method).       |
 
-Seed data in the current file: 1 company, 5 customers, 12 products, 4 suppliers.
+Seed data in the current file: 1 company, 6 customers, 12 products, 4 suppliers, plus the
+supporting master data (VAT codes, payment terms, warehouses, price lists, exchange rates and
+more). Call `setup-status` to see the exact count of every seeded entity.
