@@ -2237,7 +2237,7 @@ public static class ComposedOperations
     private static Guid Id(QueryResponse r) => Guid.Parse(r.Object.Data.First()["id"].ToString());
 
     private static string NextNumber(string prefix)
-        => prefix + "-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture);
+        => prefix + "-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 4).ToUpperInvariant();
 
     private static DateTime? ParseDate(string s)
     {
