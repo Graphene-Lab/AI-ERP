@@ -1,8 +1,38 @@
 {
-  "version": 1,
-  "comment": "First-run custom for a sample trading company. Applied automatically by the AgentApi plugin on a fresh database. Money fields are 'number'. Relationships use Guid foreign-key fields (set directly on the record).",
+  "version": 4,
+  "comment": "Deep commercial-cycle schema for a realistic trading company. Applied headlessly by the AgentApi plugin on a fresh database. Money = 'number'. Relationships are Guid FK fields; in the seed a FK is written as '@entity:uniqueValue' and resolved to the referenced record id. Stock is per-warehouse via stock_item (authoritative) plus a denormalized product.stock_quantity total kept in sync by the composed operations. v3 adds master-data (addresses, barcodes, product suppliers, contacts, sales agents), pricing (price lists, exchange rates, discount rules) and warehouse/returns (bin locations, cycle counts, sales returns). v4 adds daily-use document richness: invoice discount/stamp/withholding/reverse-charge/tax-type/customs/posting/storno fields, invoice line types, installments, debit notes, attachments, document audit, bank transactions, reservations and supplier returns.",
 
   "entities": [
+    {
+      "name": "warehouse", "label": "Warehouse", "labelPlural": "Warehouses",
+      "fields": [
+        { "name": "code", "type": "text", "label": "Code", "required": true, "unique": true },
+        { "name": "name", "type": "text", "label": "Name", "required": true },
+        { "name": "address", "type": "multiline", "label": "Address" },
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "is_default", "type": "bool", "label": "Default Warehouse" },
+        { "name": "allow_negative_stock", "type": "bool", "label": "Allow Negative Stock" }
+      ]
+    },
+    {
+      "name": "vat_code", "label": "VAT Code", "labelPlural": "VAT Codes",
+      "fields": [
+        { "name": "code", "type": "text", "label": "Code", "required": true, "unique": true },
+        { "name": "rate", "type": "percent", "label": "Rate %", "required": true, "decimalPlaces": 2 },
+        { "name": "label", "type": "text", "label": "Label" },
+        { "name": "is_exempt", "type": "bool", "label": "Exempt" }
+      ]
+    },
+    {
+      "name": "payment_term", "label": "Payment Term", "labelPlural": "Payment Terms",
+      "fields": [
+        { "name": "code", "type": "text", "label": "Code", "required": true, "unique": true },
+        { "name": "days", "type": "number", "label": "Days", "required": true, "decimalPlaces": 0, "minValue": 0 },
+        { "name": "label", "type": "text", "label": "Label" },
+        { "name": "method", "type": "select", "label": "Method", "options": ["bank", "card", "cash", "sdd"], "defaultValue": "bank" }
+      ]
+    },
     {
       "name": "company", "label": "Company", "labelPlural": "Companies",
       "fields": [
@@ -14,7 +44,8 @@
         { "name": "country", "type": "text", "label": "Country" },
         { "name": "email", "type": "email", "label": "Email" },
         { "name": "phone", "type": "phone", "label": "Phone" },
-        { "name": "currency", "type": "text", "label": "Currency" }
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "default_warehouse_id", "type": "guid", "label": "Default Warehouse" }
       ]
     },
     {
@@ -24,11 +55,35 @@
         { "name": "email", "type": "email", "label": "Email" },
         { "name": "phone", "type": "phone", "label": "Phone" },
         { "name": "billing_address", "type": "multiline", "label": "Billing Address" },
+        { "name": "shipping_address", "type": "multiline", "label": "Shipping Address" },
         { "name": "city", "type": "text", "label": "City" },
         { "name": "country", "type": "text", "label": "Country" },
         { "name": "vat_number", "type": "text", "label": "VAT Number" },
         { "name": "category", "type": "select", "label": "Category", "options": ["retail", "wholesale", "vip"], "defaultValue": "retail" },
         { "name": "credit_limit", "type": "number", "label": "Credit Limit", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "payment_term_id", "type": "guid", "label": "Payment Term" },
+        { "name": "default_vat_code_id", "type": "guid", "label": "Default VAT Code" },
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "blocked", "type": "bool", "label": "Blocked" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "supplier", "label": "Supplier", "labelPlural": "Suppliers",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true, "unique": true },
+        { "name": "contact_name", "type": "text", "label": "Contact Name" },
+        { "name": "email", "type": "email", "label": "Email" },
+        { "name": "phone", "type": "phone", "label": "Phone" },
+        { "name": "address", "type": "multiline", "label": "Address" },
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "vat_number", "type": "text", "label": "VAT Number" },
+        { "name": "payment_term_id", "type": "guid", "label": "Payment Term" },
+        { "name": "default_vat_code_id", "type": "guid", "label": "Default VAT Code" },
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "iban", "type": "text", "label": "IBAN" },
+        { "name": "blocked", "type": "bool", "label": "Blocked" },
         { "name": "notes", "type": "multiline", "label": "Notes" }
       ]
     },
@@ -42,21 +97,75 @@
         { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2, "minValue": 0 },
         { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2, "minValue": 0 },
         { "name": "unit_of_measure", "type": "text", "label": "Unit of Measure" },
-        { "name": "stock_quantity", "type": "number", "label": "Stock Quantity", "decimalPlaces": 2, "minValue": 0 },
-        { "name": "reorder_point", "type": "number", "label": "Reorder Point", "decimalPlaces": 2, "minValue": 0 },
-        { "name": "active", "type": "bool", "label": "Active" }
+        { "name": "vat_code_id", "type": "guid", "label": "VAT Code" },
+        { "name": "default_warehouse_id", "type": "guid", "label": "Default Warehouse" },
+        { "name": "lot_tracked", "type": "bool", "label": "Lot Tracked" },
+        { "name": "serial_tracked", "type": "bool", "label": "Serial Tracked" },
+        { "name": "shelf_life_days", "type": "number", "label": "Shelf Life Days", "decimalPlaces": 0, "minValue": 0 },
+        { "name": "min_stock", "type": "number", "label": "Min Stock", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "max_stock", "type": "number", "label": "Max Stock", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "barcode", "type": "text", "label": "Barcode" },
+        { "name": "stock_quantity", "type": "number", "label": "Stock Quantity (total)", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "active", "type": "bool", "label": "Active" },
+        { "name": "valid_from", "type": "date", "label": "Valid From" },
+        { "name": "valid_until", "type": "date", "label": "Valid Until" },
+        { "name": "valuation_method", "type": "select", "label": "Valuation Method", "options": ["standard", "last", "actual"], "defaultValue": "actual" },
+        { "name": "standard_cost", "type": "number", "label": "Standard Cost", "decimalPlaces": 2, "minValue": 0 }
       ]
     },
     {
-      "name": "supplier", "label": "Supplier", "labelPlural": "Suppliers",
+      "name": "stock_item", "label": "Stock Item", "labelPlural": "Stock Items",
       "fields": [
-        { "name": "name", "type": "text", "label": "Name", "required": true, "unique": true },
-        { "name": "contact_name", "type": "text", "label": "Contact Name" },
-        { "name": "email", "type": "email", "label": "Email" },
-        { "name": "phone", "type": "phone", "label": "Phone" },
-        { "name": "city", "type": "text", "label": "City" },
-        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "stock_key", "type": "text", "label": "Stock Key", "required": true, "unique": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2 },
+        { "name": "avg_cost", "type": "number", "label": "Average Cost", "decimalPlaces": 2 },
+        { "name": "bin_id", "type": "guid", "label": "Bin Location" }
+      ]
+    },
+    {
+      "name": "stock_movement", "label": "Stock Movement", "labelPlural": "Stock Movements",
+      "fields": [
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "movement_type", "type": "select", "label": "Movement Type", "options": ["receipt", "issue", "transfer_in", "transfer_out", "adjustment", "return_in", "return_out"], "defaultValue": "receipt", "required": true },
+        { "name": "quantity_delta", "type": "number", "label": "Quantity Delta", "decimalPlaces": 2 },
+        { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2 },
+        { "name": "reference_type", "type": "text", "label": "Reference Type" },
+        { "name": "reference_id", "type": "guid", "label": "Reference Id" },
+        { "name": "lot_number", "type": "text", "label": "Lot Number" },
+        { "name": "expiry_date", "type": "date", "label": "Expiry Date" },
+        { "name": "movement_date", "type": "datetime", "label": "Movement Date" }
+      ]
+    },
+
+    {
+      "name": "quote", "label": "Quote", "labelPlural": "Quotes",
+      "fields": [
+        { "name": "quote_number", "type": "text", "label": "Quote Number", "required": true, "unique": true },
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "quote_date", "type": "date", "label": "Quote Date" },
+        { "name": "valid_until", "type": "date", "label": "Valid Until" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "sent", "accepted", "rejected", "converted", "expired"], "defaultValue": "draft" },
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "payment_term_id", "type": "guid", "label": "Payment Term" },
+        { "name": "subtotal", "type": "number", "label": "Subtotal", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "grand_total", "type": "number", "label": "Grand Total", "decimalPlaces": 2 },
         { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "quote_line", "label": "Quote Line", "labelPlural": "Quote Lines",
+      "fields": [
+        { "name": "quote_id", "type": "guid", "label": "Quote", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2 },
+        { "name": "discount_percent", "type": "percent", "label": "Discount %", "decimalPlaces": 2 },
+        { "name": "vat_code_id", "type": "guid", "label": "VAT Code" },
+        { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 }
       ]
     },
     {
@@ -64,11 +173,20 @@
       "fields": [
         { "name": "order_number", "type": "text", "label": "Order Number", "required": true, "unique": true },
         { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "quote_id", "type": "guid", "label": "Origin Quote" },
         { "name": "order_date", "type": "date", "label": "Order Date" },
         { "name": "required_date", "type": "date", "label": "Required Date" },
-        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "confirmed", "shipped", "cancelled"], "defaultValue": "draft" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "confirmed", "partially_delivered", "delivered", "invoiced", "cancelled"], "defaultValue": "draft" },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse" },
+        { "name": "payment_term_id", "type": "guid", "label": "Payment Term" },
         { "name": "currency", "type": "text", "label": "Currency" },
-        { "name": "total", "type": "number", "label": "Total", "decimalPlaces": 2 },
+        { "name": "total", "type": "number", "label": "Total (excl VAT)", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "grand_total", "type": "number", "label": "Grand Total", "decimalPlaces": 2 },
+        { "name": "confirmed_date", "type": "date", "label": "Confirmed Date" },
+        { "name": "planned_delivery_date", "type": "date", "label": "Planned Delivery Date" },
+        { "name": "transport_terms", "type": "text", "label": "Transport Terms" },
+        { "name": "sales_agent_id", "type": "guid", "label": "Sales Agent" },
         { "name": "notes", "type": "multiline", "label": "Notes" }
       ]
     },
@@ -80,7 +198,124 @@
         { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
         { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2 },
         { "name": "discount_percent", "type": "percent", "label": "Discount %", "decimalPlaces": 2 },
+        { "name": "vat_code_id", "type": "guid", "label": "VAT Code" },
+        { "name": "qty_delivered", "type": "number", "label": "Qty Delivered", "decimalPlaces": 2 },
+        { "name": "qty_invoiced", "type": "number", "label": "Qty Invoiced", "decimalPlaces": 2 },
         { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "goods_delivery", "label": "Goods Delivery (DDT)", "labelPlural": "Goods Deliveries",
+      "fields": [
+        { "name": "delivery_number", "type": "text", "label": "Delivery Number", "required": true, "unique": true },
+        { "name": "sales_order_id", "type": "guid", "label": "Sales Order", "required": true },
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "delivery_date", "type": "date", "label": "Delivery Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "confirmed", "shipped"], "defaultValue": "draft" },
+        { "name": "transport_cause", "type": "text", "label": "Transport Cause" },
+        { "name": "carrier", "type": "text", "label": "Carrier" },
+        { "name": "tracking_number", "type": "text", "label": "Tracking Number" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "goods_delivery_line", "label": "Goods Delivery Line", "labelPlural": "Goods Delivery Lines",
+      "fields": [
+        { "name": "delivery_id", "type": "guid", "label": "Delivery", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "lot_number", "type": "text", "label": "Lot Number" },
+        { "name": "expiry_date", "type": "date", "label": "Expiry Date" }
+      ]
+    },
+    {
+      "name": "invoice", "label": "Invoice", "labelPlural": "Invoices",
+      "fields": [
+        { "name": "invoice_number", "type": "text", "label": "Invoice Number", "required": true, "unique": true },
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "sales_order_id", "type": "guid", "label": "Sales Order" },
+        { "name": "invoice_type", "type": "select", "label": "Invoice Type", "options": ["immediate", "delayed", "accompanying", "proforma"], "defaultValue": "immediate" },
+        { "name": "issue_date", "type": "date", "label": "Issue Date" },
+        { "name": "due_date", "type": "date", "label": "Due Date" },
+        { "name": "amount", "type": "number", "label": "Amount (excl VAT)", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "grand_total", "type": "number", "label": "Grand Total", "decimalPlaces": 2 },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse" },
+        { "name": "payment_term_id", "type": "guid", "label": "Payment Term" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "sent", "partial", "paid", "overdue", "credited", "cancelled"], "defaultValue": "draft" },
+        { "name": "document_discount_percent", "type": "percent", "label": "Document Discount %", "decimalPlaces": 2 },
+        { "name": "stamp_tax", "type": "number", "label": "Stamp Tax", "decimalPlaces": 2 },
+        { "name": "withholding_percent", "type": "percent", "label": "Withholding %", "decimalPlaces": 2 },
+        { "name": "withholding_amount", "type": "number", "label": "Withholding Amount", "decimalPlaces": 2 },
+        { "name": "reverse_charge", "type": "bool", "label": "Reverse Charge" },
+        { "name": "tax_document_type", "type": "select", "label": "Tax Document Type", "options": ["taxable", "non_taxable", "exempt", "out_of_scope", "intra_community", "extra_community"], "defaultValue": "taxable" },
+        { "name": "customs_amount", "type": "number", "label": "Customs Amount", "decimalPlaces": 2 },
+        { "name": "posted", "type": "bool", "label": "Posted" },
+        { "name": "posted_date", "type": "date", "label": "Posted Date" },
+        { "name": "storned", "type": "bool", "label": "Storned" },
+        { "name": "storno_of", "type": "guid", "label": "Storno Of" },
+        { "name": "customer_visible_notes", "type": "multiline", "label": "Customer Visible Notes" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "invoice_line", "label": "Invoice Line", "labelPlural": "Invoice Lines",
+      "fields": [
+        { "name": "invoice_id", "type": "guid", "label": "Invoice", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2 },
+        { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2 },
+        { "name": "discount_percent", "type": "percent", "label": "Discount %", "decimalPlaces": 2 },
+        { "name": "vat_code_id", "type": "guid", "label": "VAT Code" },
+        { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 },
+        { "name": "vat_amount", "type": "number", "label": "VAT Amount", "decimalPlaces": 2 },
+        { "name": "line_type", "type": "select", "label": "Line Type", "options": ["product", "accessory", "transport"], "defaultValue": "product" }
+      ]
+    },
+    {
+      "name": "credit_note", "label": "Credit Note", "labelPlural": "Credit Notes",
+      "fields": [
+        { "name": "credit_note_number", "type": "text", "label": "Credit Note Number", "required": true, "unique": true },
+        { "name": "invoice_id", "type": "guid", "label": "Invoice", "required": true },
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "credit_date", "type": "date", "label": "Credit Date" },
+        { "name": "amount", "type": "number", "label": "Amount (excl VAT)", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "reason", "type": "text", "label": "Reason" },
+        { "name": "credit_type", "type": "select", "label": "Credit Type", "options": ["total", "partial"], "defaultValue": "partial" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "issued", "applied"], "defaultValue": "draft" }
+      ]
+    },
+    {
+      "name": "payment", "label": "Payment", "labelPlural": "Payments",
+      "fields": [
+        { "name": "payment_ref", "type": "text", "label": "Payment Reference", "required": true, "unique": true },
+        { "name": "invoice_id", "type": "guid", "label": "Invoice", "required": true },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "payment_date", "type": "date", "label": "Payment Date" },
+        { "name": "method", "type": "select", "label": "Method", "options": ["bank", "card", "cash", "sdd", "rid", "check", "rib", "pos"], "defaultValue": "bank" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+
+    {
+      "name": "purchase_request", "label": "Purchase Request", "labelPlural": "Purchase Requests",
+      "fields": [
+        { "name": "request_number", "type": "text", "label": "Request Number", "required": true, "unique": true },
+        { "name": "requested_by", "type": "text", "label": "Requested By" },
+        { "name": "request_date", "type": "date", "label": "Request Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "approved", "rejected", "converted"], "defaultValue": "draft" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "purchase_request_line", "label": "Purchase Request Line", "labelPlural": "Purchase Request Lines",
+      "fields": [
+        { "name": "request_id", "type": "guid", "label": "Request", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "estimated_cost", "type": "number", "label": "Estimated Cost", "decimalPlaces": 2 }
       ]
     },
     {
@@ -88,10 +323,16 @@
       "fields": [
         { "name": "po_number", "type": "text", "label": "PO Number", "required": true, "unique": true },
         { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "request_id", "type": "guid", "label": "Origin Request" },
         { "name": "order_date", "type": "date", "label": "Order Date" },
         { "name": "expected_date", "type": "date", "label": "Expected Date" },
-        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "ordered", "received", "cancelled"], "defaultValue": "draft" },
-        { "name": "total", "type": "number", "label": "Total", "decimalPlaces": 2 },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "ordered", "partially_received", "received", "invoiced", "cancelled"], "defaultValue": "draft" },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse" },
+        { "name": "payment_term_id", "type": "guid", "label": "Payment Term" },
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "total", "type": "number", "label": "Total (excl VAT)", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "grand_total", "type": "number", "label": "Grand Total", "decimalPlaces": 2 },
         { "name": "notes", "type": "multiline", "label": "Notes" }
       ]
     },
@@ -102,64 +343,409 @@
         { "name": "product_id", "type": "guid", "label": "Product", "required": true },
         { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
         { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2 },
+        { "name": "vat_code_id", "type": "guid", "label": "VAT Code" },
+        { "name": "qty_received", "type": "number", "label": "Qty Received", "decimalPlaces": 2 },
         { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 }
       ]
     },
     {
-      "name": "invoice", "label": "Invoice", "labelPlural": "Invoices",
+      "name": "goods_receipt", "label": "Goods Receipt", "labelPlural": "Goods Receipts",
       "fields": [
-        { "name": "invoice_number", "type": "text", "label": "Invoice Number", "required": true, "unique": true },
-        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
-        { "name": "sales_order_id", "type": "guid", "label": "Sales Order" },
-        { "name": "issue_date", "type": "date", "label": "Issue Date" },
-        { "name": "due_date", "type": "date", "label": "Due Date" },
-        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
-        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "sent", "paid", "partial", "overdue", "cancelled"], "defaultValue": "draft" },
+        { "name": "receipt_number", "type": "text", "label": "Receipt Number", "required": true, "unique": true },
+        { "name": "purchase_order_id", "type": "guid", "label": "Purchase Order", "required": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "receipt_date", "type": "date", "label": "Receipt Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "confirmed"], "defaultValue": "draft" },
         { "name": "notes", "type": "multiline", "label": "Notes" }
       ]
     },
     {
-      "name": "payment", "label": "Payment", "labelPlural": "Payments",
+      "name": "goods_receipt_line", "label": "Goods Receipt Line", "labelPlural": "Goods Receipt Lines",
+      "fields": [
+        { "name": "receipt_id", "type": "guid", "label": "Receipt", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity_ordered", "type": "number", "label": "Quantity Ordered", "decimalPlaces": 2 },
+        { "name": "quantity_received", "type": "number", "label": "Quantity Received", "decimalPlaces": 2 },
+        { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2 },
+        { "name": "lot_number", "type": "text", "label": "Lot Number" },
+        { "name": "expiry_date", "type": "date", "label": "Expiry Date" }
+      ]
+    },
+    {
+      "name": "purchase_invoice", "label": "Purchase Invoice", "labelPlural": "Purchase Invoices",
+      "fields": [
+        { "name": "bill_number", "type": "text", "label": "Bill Number", "required": true, "unique": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "purchase_order_id", "type": "guid", "label": "Purchase Order" },
+        { "name": "bill_date", "type": "date", "label": "Bill Date" },
+        { "name": "due_date", "type": "date", "label": "Due Date" },
+        { "name": "amount", "type": "number", "label": "Amount (excl VAT)", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "grand_total", "type": "number", "label": "Grand Total", "decimalPlaces": 2 },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "registered", "partial", "paid", "cancelled"], "defaultValue": "draft" },
+        { "name": "triple_match_status", "type": "select", "label": "Triple Match", "options": ["pending", "matched", "mismatched"], "defaultValue": "pending" },
+        { "name": "notes", "type": "multiline", "label": "Notes" }
+      ]
+    },
+    {
+      "name": "purchase_invoice_line", "label": "Purchase Invoice Line", "labelPlural": "Purchase Invoice Lines",
+      "fields": [
+        { "name": "bill_id", "type": "guid", "label": "Bill", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2 },
+        { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2 },
+        { "name": "vat_code_id", "type": "guid", "label": "VAT Code" },
+        { "name": "line_total", "type": "number", "label": "Line Total", "decimalPlaces": 2 },
+        { "name": "vat_amount", "type": "number", "label": "VAT Amount", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "supplier_credit_note", "label": "Supplier Credit Note", "labelPlural": "Supplier Credit Notes",
+      "fields": [
+        { "name": "credit_note_number", "type": "text", "label": "Credit Note Number", "required": true, "unique": true },
+        { "name": "bill_id", "type": "guid", "label": "Bill", "required": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "credit_date", "type": "date", "label": "Credit Date" },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "reason", "type": "text", "label": "Reason" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "issued", "applied"], "defaultValue": "draft" }
+      ]
+    },
+    {
+      "name": "supplier_payment", "label": "Supplier Payment", "labelPlural": "Supplier Payments",
       "fields": [
         { "name": "payment_ref", "type": "text", "label": "Payment Reference", "required": true, "unique": true },
-        { "name": "invoice_id", "type": "guid", "label": "Invoice", "required": true },
+        { "name": "bill_id", "type": "guid", "label": "Bill", "required": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
         { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
         { "name": "payment_date", "type": "date", "label": "Payment Date" },
-        { "name": "method", "type": "select", "label": "Method", "options": ["bank", "card", "cash"], "defaultValue": "bank" }
+        { "name": "method", "type": "select", "label": "Method", "options": ["bank", "sdd", "rid", "cash"], "defaultValue": "bank" }
+      ]
+    },
+
+    {
+      "name": "customer_address", "label": "Customer Address", "labelPlural": "Customer Addresses",
+      "fields": [
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "kind", "type": "select", "label": "Kind", "options": ["billing", "ship"], "defaultValue": "billing" },
+        { "name": "line1", "type": "text", "label": "Line 1" },
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "country", "type": "text", "label": "Country" },
+        { "name": "postal_code", "type": "text", "label": "Postal Code" },
+        { "name": "is_default", "type": "bool", "label": "Default" }
+      ]
+    },
+    {
+      "name": "product_barcode", "label": "Product Barcode", "labelPlural": "Product Barcodes",
+      "fields": [
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "code", "type": "text", "label": "Code", "required": true, "unique": true },
+        { "name": "barcode_type", "type": "select", "label": "Barcode Type", "options": ["ean13", "ean8", "upc", "internal"], "defaultValue": "ean13" }
+      ]
+    },
+    {
+      "name": "product_supplier", "label": "Product Supplier", "labelPlural": "Product Suppliers",
+      "fields": [
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "supplier_sku", "type": "text", "label": "Supplier SKU" },
+        { "name": "lead_time_days", "type": "number", "label": "Lead Time Days", "decimalPlaces": 0, "minValue": 0 },
+        { "name": "min_order_qty", "type": "number", "label": "Min Order Qty", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "unit_cost", "type": "number", "label": "Unit Cost", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "is_default", "type": "bool", "label": "Default" }
+      ]
+    },
+    {
+      "name": "contact", "label": "Contact", "labelPlural": "Contacts",
+      "fields": [
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "name", "type": "text", "label": "Name", "required": true },
+        { "name": "role", "type": "text", "label": "Role" },
+        { "name": "email", "type": "email", "label": "Email" },
+        { "name": "phone", "type": "phone", "label": "Phone" },
+        { "name": "is_primary", "type": "bool", "label": "Primary" }
+      ]
+    },
+    {
+      "name": "sales_agent", "label": "Sales Agent", "labelPlural": "Sales Agents",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true, "unique": true },
+        { "name": "email", "type": "email", "label": "Email" },
+        { "name": "commission_percent", "type": "percent", "label": "Commission %", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "price_list", "label": "Price List", "labelPlural": "Price Lists",
+      "fields": [
+        { "name": "code", "type": "text", "label": "Code", "required": true, "unique": true },
+        { "name": "name", "type": "text", "label": "Name" },
+        { "name": "currency", "type": "text", "label": "Currency" },
+        { "name": "customer_category", "type": "select", "label": "Customer Category", "options": ["retail", "wholesale", "vip"], "defaultValue": "retail" },
+        { "name": "valid_from", "type": "date", "label": "Valid From" },
+        { "name": "valid_until", "type": "date", "label": "Valid Until" }
+      ]
+    },
+    {
+      "name": "price_list_item", "label": "Price List Item", "labelPlural": "Price List Items",
+      "fields": [
+        { "name": "price_list_id", "type": "guid", "label": "Price List", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "unit_price", "type": "number", "label": "Unit Price", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "exchange_rate", "label": "Exchange Rate", "labelPlural": "Exchange Rates",
+      "fields": [
+        { "name": "from_currency", "type": "text", "label": "From Currency", "required": true },
+        { "name": "to_currency", "type": "text", "label": "To Currency", "required": true },
+        { "name": "rate", "type": "number", "label": "Rate", "decimalPlaces": 6 },
+        { "name": "rate_type", "type": "select", "label": "Rate Type", "options": ["fixed", "variable"], "defaultValue": "fixed" },
+        { "name": "effective_date", "type": "date", "label": "Effective Date" }
+      ]
+    },
+    {
+      "name": "discount_rule", "label": "Discount Rule", "labelPlural": "Discount Rules",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true },
+        { "name": "scope", "type": "select", "label": "Scope", "options": ["product", "category", "customer"], "defaultValue": "product" },
+        { "name": "scope_value", "type": "text", "label": "Scope Value" },
+        { "name": "min_qty", "type": "number", "label": "Min Qty", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "discount_percent", "type": "percent", "label": "Discount %", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "bin_location", "label": "Bin Location", "labelPlural": "Bin Locations",
+      "fields": [
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "code", "type": "text", "label": "Code", "required": true },
+        { "name": "zone", "type": "text", "label": "Zone" }
+      ]
+    },
+    {
+      "name": "cycle_count", "label": "Cycle Count", "labelPlural": "Cycle Counts",
+      "fields": [
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "count_date", "type": "date", "label": "Count Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["open", "counted", "applied"], "defaultValue": "open" }
+      ]
+    },
+    {
+      "name": "cycle_count_line", "label": "Cycle Count Line", "labelPlural": "Cycle Count Lines",
+      "fields": [
+        { "name": "cycle_count_id", "type": "guid", "label": "Cycle Count", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "bin_id", "type": "guid", "label": "Bin" },
+        { "name": "expected_qty", "type": "number", "label": "Expected Qty", "decimalPlaces": 2 },
+        { "name": "counted_qty", "type": "number", "label": "Counted Qty", "decimalPlaces": 2 },
+        { "name": "variance", "type": "number", "label": "Variance", "decimalPlaces": 2 }
+      ]
+    },
+    {
+      "name": "sales_return", "label": "Sales Return", "labelPlural": "Sales Returns",
+      "fields": [
+        { "name": "customer_id", "type": "guid", "label": "Customer", "required": true },
+        { "name": "original_delivery_id", "type": "guid", "label": "Original Delivery" },
+        { "name": "return_date", "type": "date", "label": "Return Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "processed"], "defaultValue": "draft" }
+      ]
+    },
+    {
+      "name": "sales_return_line", "label": "Sales Return Line", "labelPlural": "Sales Return Lines",
+      "fields": [
+        { "name": "sales_return_id", "type": "guid", "label": "Sales Return", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "disposition", "type": "select", "label": "Disposition", "options": ["restock", "scrap"], "defaultValue": "restock" }
+      ]
+    },
+
+    {
+      "name": "invoice_installment", "label": "Invoice Installment", "labelPlural": "Invoice Installments",
+      "fields": [
+        { "name": "invoice_id", "type": "guid", "label": "Invoice", "required": true },
+        { "name": "due_date", "type": "date", "label": "Due Date" },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "sequence", "type": "number", "label": "Sequence", "decimalPlaces": 0 }
+      ]
+    },
+    {
+      "name": "debit_note", "label": "Debit Note", "labelPlural": "Debit Notes",
+      "fields": [
+        { "name": "debit_note_number", "type": "text", "label": "Debit Note Number", "required": true, "unique": true },
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "bill_id", "type": "guid", "label": "Bill" },
+        { "name": "debit_date", "type": "date", "label": "Debit Date" },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "vat_total", "type": "number", "label": "VAT Total", "decimalPlaces": 2 },
+        { "name": "reason", "type": "text", "label": "Reason" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "issued", "applied"], "defaultValue": "draft" }
+      ]
+    },
+    {
+      "name": "attachment", "label": "Attachment", "labelPlural": "Attachments",
+      "fields": [
+        { "name": "entity_name", "type": "text", "label": "Entity Name", "required": true },
+        { "name": "record_id", "type": "guid", "label": "Record Id", "required": true },
+        { "name": "filename", "type": "text", "label": "Filename" },
+        { "name": "content_base64", "type": "text", "label": "Content Base64", "maxLength": 1000000 },
+        { "name": "uploaded_on", "type": "datetime", "label": "Uploaded On" }
+      ]
+    },
+    {
+      "name": "document_audit", "label": "Document Audit", "labelPlural": "Document Audits",
+      "fields": [
+        { "name": "entity_name", "type": "text", "label": "Entity Name", "required": true },
+        { "name": "record_id", "type": "guid", "label": "Record Id", "required": true },
+        { "name": "action", "type": "text", "label": "Action" },
+        { "name": "changed_by", "type": "text", "label": "Changed By" },
+        { "name": "changed_on", "type": "datetime", "label": "Changed On" },
+        { "name": "note", "type": "text", "label": "Note" }
+      ]
+    },
+    {
+      "name": "bank_transaction", "label": "Bank Transaction", "labelPlural": "Bank Transactions",
+      "fields": [
+        { "name": "txn_date", "type": "date", "label": "Transaction Date" },
+        { "name": "amount", "type": "number", "label": "Amount", "decimalPlaces": 2 },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "matched_invoice_id", "type": "guid", "label": "Matched Invoice" },
+        { "name": "matched", "type": "bool", "label": "Matched" }
+      ]
+    },
+    {
+      "name": "reservation", "label": "Reservation", "labelPlural": "Reservations",
+      "fields": [
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "warehouse_id", "type": "guid", "label": "Warehouse", "required": true },
+        { "name": "sales_order_id", "type": "guid", "label": "Sales Order" },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2 },
+        { "name": "reserved_on", "type": "datetime", "label": "Reserved On" }
+      ]
+    },
+    {
+      "name": "supplier_return", "label": "Supplier Return", "labelPlural": "Supplier Returns",
+      "fields": [
+        { "name": "supplier_id", "type": "guid", "label": "Supplier", "required": true },
+        { "name": "receipt_id", "type": "guid", "label": "Receipt" },
+        { "name": "return_date", "type": "date", "label": "Return Date" },
+        { "name": "status", "type": "select", "label": "Status", "options": ["draft", "processed"], "defaultValue": "draft" }
+      ]
+    },
+    {
+      "name": "supplier_return_line", "label": "Supplier Return Line", "labelPlural": "Supplier Return Lines",
+      "fields": [
+        { "name": "supplier_return_id", "type": "guid", "label": "Supplier Return", "required": true },
+        { "name": "product_id", "type": "guid", "label": "Product", "required": true },
+        { "name": "quantity", "type": "number", "label": "Quantity", "decimalPlaces": 2, "minValue": 0 },
+        { "name": "reason", "type": "text", "label": "Reason" }
       ]
     }
   ],
 
   "seed": {
+    "vat_code": [
+      { "code": "V22", "rate": 22, "label": "Standard 22%", "is_exempt": false },
+      { "code": "V10", "rate": 10, "label": "Reduced 10%", "is_exempt": false },
+      { "code": "V05", "rate": 5, "label": "Reduced 5%", "is_exempt": false },
+      { "code": "V00", "rate": 0, "label": "Exempt 0%", "is_exempt": true }
+    ],
+    "payment_term": [
+      { "code": "IMM", "days": 0, "label": "Immediate", "method": "bank" },
+      { "code": "TP30", "days": 30, "label": "30 days", "method": "bank" },
+      { "code": "TP60", "days": 60, "label": "60 days", "method": "bank" },
+      { "code": "TP90", "days": 90, "label": "90 days", "method": "sdd" }
+    ],
+    "warehouse": [
+      { "code": "WH1", "name": "Main Warehouse", "city": "Milan", "country": "Italy", "is_default": true, "allow_negative_stock": false },
+      { "code": "WH2", "name": "Secondary Warehouse", "city": "Rome", "country": "Italy", "is_default": false, "allow_negative_stock": false },
+      { "code": "WHR", "name": "Returns Depot", "city": "Bologna", "country": "Italy", "is_default": false, "allow_negative_stock": false }
+    ],
     "company": [
-      { "name": "Northwind Traders", "legal_name": "Northwind Traders S.r.l.", "vat_number": "IT01234560123", "address": "Via Roma 10", "city": "Milan", "country": "Italy", "email": "info@northwind.example", "phone": "+39 02 1234567", "currency": "EUR" }
+      { "name": "Northwind Traders", "legal_name": "Northwind Traders S.r.l.", "vat_number": "IT01234560123", "address": "Via Roma 10", "city": "Milan", "country": "Italy", "email": "info@northwind.example", "phone": "+39 02 1234567", "currency": "EUR", "default_warehouse_id": "@warehouse:WH1" }
     ],
     "customer": [
-      { "name": "Alpine Coffee Roasters", "email": "orders@alpinecoffee.example", "phone": "+39 012 345678", "city": "Turin", "country": "Italy", "vat_number": "IT02222220111", "category": "wholesale", "credit_limit": 20000 },
-      { "name": "Bavarian Deli", "email": "buy@bavariandeli.example", "phone": "+49 89 112233", "city": "Munich", "country": "Germany", "vat_number": "DE123456789", "category": "retail", "credit_limit": 5000 },
-      { "name": "City Books Ltd", "email": "orders@citybooks.example", "phone": "+44 20 7946 0000", "city": "London", "country": "United Kingdom", "category": "retail", "credit_limit": 8000 },
-      { "name": "Delta Office Supplies", "email": "procure@deltaoffice.example", "phone": "+1 212 555 0100", "city": "New York", "country": "United States", "category": "vip", "credit_limit": 50000 },
-      { "name": "Evergreen Grocers", "email": "hello@evergreen.example", "phone": "+33 1 22 33 44 55", "city": "Paris", "country": "France", "category": "wholesale", "credit_limit": 15000 }
-    ],
-    "product": [
-      { "sku": "SKU-1001", "name": "Espresso Beans 1kg", "category": "Coffee", "unit_price": 18.50, "unit_cost": 9.00, "unit_of_measure": "bag", "stock_quantity": 240, "reorder_point": 50, "active": true },
-      { "sku": "SKU-1002", "name": "Ground Coffee 500g", "category": "Coffee", "unit_price": 11.00, "unit_cost": 5.50, "unit_of_measure": "pack", "stock_quantity": 180, "reorder_point": 40, "active": true },
-      { "sku": "SKU-2001", "name": "Paper Cups 100pk", "category": "Packaging", "unit_price": 6.90, "unit_cost": 3.20, "unit_of_measure": "pack", "stock_quantity": 500, "reorder_point": 100, "active": true },
-      { "sku": "SKU-2002", "name": "Napkins 200pk", "category": "Packaging", "unit_price": 4.50, "unit_cost": 2.00, "unit_of_measure": "pack", "stock_quantity": 30, "reorder_point": 60, "active": true },
-      { "sku": "SKU-3001", "name": "Ceramic Mug", "category": "Tableware", "unit_price": 9.99, "unit_cost": 4.00, "unit_of_measure": "unit", "stock_quantity": 120, "reorder_point": 30, "active": true },
-      { "sku": "SKU-3002", "name": "Glass Tumbler", "category": "Tableware", "unit_price": 7.50, "unit_cost": 3.00, "unit_of_measure": "unit", "stock_quantity": 90, "reorder_point": 25, "active": true },
-      { "sku": "SKU-4001", "name": "A4 Paper Ream", "category": "Office", "unit_price": 5.20, "unit_cost": 2.80, "unit_of_measure": "ream", "stock_quantity": 600, "reorder_point": 150, "active": true },
-      { "sku": "SKU-4002", "name": "Ballpoint Pens 50pk", "category": "Office", "unit_price": 8.00, "unit_cost": 3.50, "unit_of_measure": "pack", "stock_quantity": 200, "reorder_point": 50, "active": true },
-      { "sku": "SKU-5001", "name": "Green Tea 250g", "category": "Tea", "unit_price": 12.00, "unit_cost": 6.00, "unit_of_measure": "pack", "stock_quantity": 75, "reorder_point": 20, "active": true },
-      { "sku": "SKU-5002", "name": "Herbal Tea 250g", "category": "Tea", "unit_price": 13.50, "unit_cost": 6.50, "unit_of_measure": "pack", "stock_quantity": 15, "reorder_point": 20, "active": true },
-      { "sku": "SKU-6001", "name": "Chocolate Bar 100g", "category": "Snacks", "unit_price": 2.50, "unit_cost": 1.10, "unit_of_measure": "unit", "stock_quantity": 400, "reorder_point": 100, "active": true },
-      { "sku": "SKU-9999", "name": "Discontinued Widget", "category": "Legacy", "unit_price": 1.00, "unit_cost": 0.50, "unit_of_measure": "unit", "stock_quantity": 0, "reorder_point": 0, "active": false }
+      { "name": "Alpine Coffee Roasters", "email": "orders@alpinecoffee.example", "phone": "+39 012 345678", "city": "Turin", "country": "Italy", "vat_number": "IT02222220111", "category": "wholesale", "credit_limit": 20000, "payment_term_id": "@payment_term:TP30", "default_vat_code_id": "@vat_code:V22", "currency": "EUR", "blocked": false },
+      { "name": "Bavarian Deli", "email": "buy@bavariandeli.example", "phone": "+49 89 112233", "city": "Munich", "country": "Germany", "vat_number": "DE123456789", "category": "retail", "credit_limit": 5000, "payment_term_id": "@payment_term:TP60", "default_vat_code_id": "@vat_code:V22", "currency": "EUR", "blocked": false },
+      { "name": "City Books Ltd", "email": "orders@citybooks.example", "phone": "+44 20 7946 0000", "city": "London", "country": "United Kingdom", "category": "retail", "credit_limit": 8000, "payment_term_id": "@payment_term:TP30", "default_vat_code_id": "@vat_code:V22", "currency": "GBP", "blocked": false },
+      { "name": "Delta Office Supplies", "email": "procure@deltaoffice.example", "phone": "+1 212 555 0100", "city": "New York", "country": "United States", "category": "vip", "credit_limit": 50000, "payment_term_id": "@payment_term:TP60", "default_vat_code_id": "@vat_code:V22", "currency": "USD", "blocked": false },
+      { "name": "Evergreen Grocers", "email": "hello@evergreen.example", "phone": "+33 1 22 33 44 55", "city": "Paris", "country": "France", "category": "wholesale", "credit_limit": 15000, "payment_term_id": "@payment_term:TP90", "default_vat_code_id": "@vat_code:V10", "currency": "EUR", "blocked": false },
+      { "name": "Suspended Trading Co", "email": "ops@suspended.example", "phone": "+39 06 99887766", "city": "Rome", "country": "Italy", "vat_number": "IT03333330589", "category": "retail", "credit_limit": 0, "payment_term_id": "@payment_term:IMM", "default_vat_code_id": "@vat_code:V22", "currency": "EUR", "blocked": true }
     ],
     "supplier": [
-      { "name": "Global Packaging Co", "contact_name": "Laura Bianchi", "email": "sales@globalpack.example", "phone": "+39 030 998877", "city": "Brescia", "country": "Italy" },
-      { "name": "Prime Coffee Importers", "contact_name": "Marco Rossi", "email": "orders@primecoffee.example", "phone": "+39 011 5554433", "city": "Genoa", "country": "Italy" },
-      { "name": "OfficePro Distribution", "contact_name": "John Smith", "email": "supply@officepro.example", "phone": "+1 415 555 0199", "city": "San Francisco", "country": "United States" },
-      { "name": "TeaLeaf Traders", "contact_name": "Chen Wei", "email": "hello@tealeaf.example", "phone": "+86 21 5555 0000", "city": "Shanghai", "country": "China" }
+      { "name": "Global Packaging Co", "contact_name": "Laura Bianchi", "email": "sales@globalpack.example", "phone": "+39 030 998877", "city": "Brescia", "country": "Italy", "vat_number": "IT04444440174", "payment_term_id": "@payment_term:TP60", "default_vat_code_id": "@vat_code:V22", "currency": "EUR", "blocked": false },
+      { "name": "Prime Coffee Importers", "contact_name": "Marco Rossi", "email": "orders@primecoffee.example", "phone": "+39 011 5554433", "city": "Genoa", "country": "Italy", "vat_number": "IT05555550158", "payment_term_id": "@payment_term:TP30", "default_vat_code_id": "@vat_code:V10", "currency": "EUR", "blocked": false },
+      { "name": "OfficePro Distribution", "contact_name": "John Smith", "email": "supply@officepro.example", "phone": "+1 415 555 0199", "city": "San Francisco", "country": "United States", "vat_number": "US123456789", "payment_term_id": "@payment_term:TP90", "default_vat_code_id": "@vat_code:V22", "currency": "USD", "blocked": false },
+      { "name": "TeaLeaf Traders", "contact_name": "Chen Wei", "email": "hello@tealeaf.example", "phone": "+86 21 5555 0000", "city": "Shanghai", "country": "China", "vat_number": "CN987654321", "payment_term_id": "@payment_term:TP60", "default_vat_code_id": "@vat_code:V00", "currency": "EUR", "blocked": false }
+    ],
+    "product": [
+      { "sku": "SKU-1001", "name": "Espresso Beans 1kg", "category": "Coffee", "unit_price": 18.50, "unit_cost": 9.00, "unit_of_measure": "bag", "vat_code_id": "@vat_code:V10", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": true, "serial_tracked": false, "shelf_life_days": 365, "min_stock": 50, "max_stock": 1000, "stock_quantity": 240, "active": true },
+      { "sku": "SKU-1002", "name": "Ground Coffee 500g", "category": "Coffee", "unit_price": 11.00, "unit_cost": 5.50, "unit_of_measure": "pack", "vat_code_id": "@vat_code:V10", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": true, "serial_tracked": false, "shelf_life_days": 240, "min_stock": 40, "max_stock": 800, "stock_quantity": 180, "active": true },
+      { "sku": "SKU-2001", "name": "Paper Cups 100pk", "category": "Packaging", "unit_price": 6.90, "unit_cost": 3.20, "unit_of_measure": "pack", "vat_code_id": "@vat_code:V22", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 100, "max_stock": 2000, "stock_quantity": 500, "active": true },
+      { "sku": "SKU-2002", "name": "Napkins 200pk", "category": "Packaging", "unit_price": 4.50, "unit_cost": 2.00, "unit_of_measure": "pack", "vat_code_id": "@vat_code:V22", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 60, "max_stock": 1500, "stock_quantity": 30, "active": true },
+      { "sku": "SKU-3001", "name": "Ceramic Mug", "category": "Tableware", "unit_price": 9.99, "unit_cost": 4.00, "unit_of_measure": "unit", "vat_code_id": "@vat_code:V22", "default_warehouse_id": "@warehouse:WH2", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 30, "max_stock": 500, "stock_quantity": 120, "active": true },
+      { "sku": "SKU-3002", "name": "Glass Tumbler", "category": "Tableware", "unit_price": 7.50, "unit_cost": 3.00, "unit_of_measure": "unit", "vat_code_id": "@vat_code:V22", "default_warehouse_id": "@warehouse:WH2", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 25, "max_stock": 500, "stock_quantity": 90, "active": true },
+      { "sku": "SKU-4001", "name": "A4 Paper Ream", "category": "Office", "unit_price": 5.20, "unit_cost": 2.80, "unit_of_measure": "ream", "vat_code_id": "@vat_code:V22", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 150, "max_stock": 3000, "stock_quantity": 600, "active": true },
+      { "sku": "SKU-4002", "name": "Ballpoint Pens 50pk", "category": "Office", "unit_price": 8.00, "unit_cost": 3.50, "unit_of_measure": "pack", "vat_code_id": "@vat_code:V22", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 50, "max_stock": 1000, "stock_quantity": 200, "active": true },
+      { "sku": "SKU-5001", "name": "Green Tea 250g", "category": "Tea", "unit_price": 12.00, "unit_cost": 6.00, "unit_of_measure": "pack", "vat_code_id": "@vat_code:V10", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": true, "serial_tracked": false, "shelf_life_days": 540, "min_stock": 20, "max_stock": 400, "stock_quantity": 75, "active": true },
+      { "sku": "SKU-5002", "name": "Herbal Tea 250g", "category": "Tea", "unit_price": 13.50, "unit_cost": 6.50, "unit_of_measure": "pack", "vat_code_id": "@vat_code:V10", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": true, "serial_tracked": false, "shelf_life_days": 540, "min_stock": 20, "max_stock": 300, "stock_quantity": 15, "active": true },
+      { "sku": "SKU-6001", "name": "Chocolate Bar 100g", "category": "Snacks", "unit_price": 2.50, "unit_cost": 1.10, "unit_of_measure": "unit", "vat_code_id": "@vat_code:V05", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": true, "serial_tracked": false, "shelf_life_days": 180, "min_stock": 100, "max_stock": 2000, "stock_quantity": 400, "active": true },
+      { "sku": "SKU-9999", "name": "Discontinued Widget", "category": "Legacy", "unit_price": 1.00, "unit_cost": 0.50, "unit_of_measure": "unit", "vat_code_id": "@vat_code:V00", "default_warehouse_id": "@warehouse:WH1", "lot_tracked": false, "serial_tracked": false, "shelf_life_days": 0, "min_stock": 0, "max_stock": 0, "stock_quantity": 0, "active": false }
+    ],
+    "stock_item": [
+      { "stock_key": "SKU-1001|WH1", "product_id": "@product:SKU-1001", "warehouse_id": "@warehouse:WH1", "quantity": 240, "avg_cost": 9.00 },
+      { "stock_key": "SKU-1002|WH1", "product_id": "@product:SKU-1002", "warehouse_id": "@warehouse:WH1", "quantity": 180, "avg_cost": 5.50 },
+      { "stock_key": "SKU-2001|WH1", "product_id": "@product:SKU-2001", "warehouse_id": "@warehouse:WH1", "quantity": 500, "avg_cost": 3.20 },
+      { "stock_key": "SKU-2002|WH1", "product_id": "@product:SKU-2002", "warehouse_id": "@warehouse:WH1", "quantity": 30, "avg_cost": 2.00 },
+      { "stock_key": "SKU-3001|WH2", "product_id": "@product:SKU-3001", "warehouse_id": "@warehouse:WH2", "quantity": 120, "avg_cost": 4.00 },
+      { "stock_key": "SKU-3002|WH2", "product_id": "@product:SKU-3002", "warehouse_id": "@warehouse:WH2", "quantity": 90, "avg_cost": 3.00 },
+      { "stock_key": "SKU-4001|WH1", "product_id": "@product:SKU-4001", "warehouse_id": "@warehouse:WH1", "quantity": 600, "avg_cost": 2.80 },
+      { "stock_key": "SKU-4002|WH1", "product_id": "@product:SKU-4002", "warehouse_id": "@warehouse:WH1", "quantity": 200, "avg_cost": 3.50 },
+      { "stock_key": "SKU-5001|WH1", "product_id": "@product:SKU-5001", "warehouse_id": "@warehouse:WH1", "quantity": 75, "avg_cost": 6.00 },
+      { "stock_key": "SKU-5002|WH1", "product_id": "@product:SKU-5002", "warehouse_id": "@warehouse:WH1", "quantity": 15, "avg_cost": 6.50 },
+      { "stock_key": "SKU-6001|WH1", "product_id": "@product:SKU-6001", "warehouse_id": "@warehouse:WH1", "quantity": 400, "avg_cost": 1.10 },
+      { "stock_key": "SKU-3001|WH1", "product_id": "@product:SKU-3001", "warehouse_id": "@warehouse:WH1", "quantity": 40, "avg_cost": 4.00 }
+    ],
+    "sales_agent": [
+      { "name": "Anna Verdi", "email": "anna@northwind.example", "commission_percent": 3 },
+      { "name": "Luca Bianchi", "email": "luca@northwind.example", "commission_percent": 5 }
+    ],
+    "price_list": [
+      { "code": "LIST-RETAIL", "name": "Retail", "currency": "EUR", "customer_category": "retail" },
+      { "code": "LIST-WHOLESALE", "name": "Wholesale", "currency": "EUR", "customer_category": "wholesale" }
+    ],
+    "price_list_item": [
+      { "price_list_id": "@price_list:LIST-RETAIL", "product_id": "@product:SKU-1001", "unit_price": 18.50 },
+      { "price_list_id": "@price_list:LIST-WHOLESALE", "product_id": "@product:SKU-1001", "unit_price": 16.00 },
+      { "price_list_id": "@price_list:LIST-RETAIL", "product_id": "@product:SKU-1002", "unit_price": 11.00 },
+      { "price_list_id": "@price_list:LIST-WHOLESALE", "product_id": "@product:SKU-1002", "unit_price": 9.50 }
+    ],
+    "exchange_rate": [
+      { "from_currency": "USD", "to_currency": "EUR", "rate": 0.92, "rate_type": "fixed" },
+      { "from_currency": "GBP", "to_currency": "EUR", "rate": 1.17, "rate_type": "fixed" }
+    ],
+    "discount_rule": [
+      { "name": "Bulk coffee 5%", "scope": "category", "scope_value": "Coffee", "min_qty": 50, "discount_percent": 5 },
+      { "name": "VIP customer 10%", "scope": "customer", "scope_value": "Delta Office Supplies", "min_qty": 0, "discount_percent": 10 }
+    ],
+    "bin_location": [
+      { "warehouse_id": "@warehouse:WH1", "code": "A-01", "zone": "A" },
+      { "warehouse_id": "@warehouse:WH1", "code": "A-02", "zone": "A" },
+      { "warehouse_id": "@warehouse:WH2", "code": "B-01", "zone": "B" }
+    ],
+    "product_supplier": [
+      { "product_id": "@product:SKU-1001", "supplier_id": "@supplier:Prime Coffee Importers", "supplier_sku": "PCI-ESP-1K", "lead_time_days": 14, "min_order_qty": 50, "unit_cost": 8.50, "is_default": true },
+      { "product_id": "@product:SKU-1001", "supplier_id": "@supplier:Global Packaging Co", "supplier_sku": "GPC-ESP-1K", "lead_time_days": 21, "min_order_qty": 100, "unit_cost": 9.20, "is_default": false }
+    ],
+    "product_barcode": [
+      { "product_id": "@product:SKU-1001", "code": "8012345678901", "barcode_type": "ean13" }
+    ],
+    "contact": [
+      { "customer_id": "@customer:Delta Office Supplies", "name": "Procurement Desk", "role": "buyer", "email": "buyers@deltaoffice.example", "is_primary": true }
+    ],
+    "bank_transaction": [
+      { "txn_date": "2026-09-10", "amount": 1000.00, "description": "Incoming wire", "matched": false },
+      { "txn_date": "2026-09-11", "amount": 500.00, "description": "Card settlement", "matched": false }
     ]
   }
 }

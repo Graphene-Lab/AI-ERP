@@ -115,6 +115,11 @@ public static class Bootstrap
                     foreach (var p in ((JObject)row).Properties())
                         rec[p.Name] = Coerce(p.Value);
 
+                    // Resolve foreign-key placeholders: a guid field whose value is "@entity:uniqueValue"
+                    // is replaced with the id of the referenced record (looked up by that entity's
+                    // unique field). Lets the seed express relationships without hardcoding GUIDs.
+                    ResolveGuidRefs(entity, rec, spec);
+
                     // Idempotency by the entity's unique field, when present.
                     var uniqueField = UniqueFieldOf(spec, entity);
                     if (uniqueField != null && HasField(rec, uniqueField) && rec[uniqueField] != null
@@ -147,6 +152,78 @@ public static class Bootstrap
             Console.WriteLine("[Bootstrap] completed with failures — marker NOT saved, will retry on next start.");
         Console.WriteLine("[Bootstrap] " + summary);
         return summary;
+    }
+
+    /// <summary>Report the current setup state so an agent can observe whether the ERP is
+    /// provisioned and whether re-applying <c>bootstrap.json</c> would change anything.
+    /// Read-only — creates nothing.</summary>
+    public static object Status(IServiceProvider serviceProvider)
+    {
+        var plugin = new AgentApiPlugin();
+        var marker = ReadMarker(plugin);
+
+        var path = ResolveBootstrapPath(serviceProvider);
+        string currentHash = null;
+        JObject spec = null;
+        if (path != null && File.Exists(path))
+        {
+            var raw = File.ReadAllText(path);
+            currentHash = Sha256(raw);
+            try { spec = JObject.Parse(raw); } catch { spec = null; }
+        }
+
+        var appliedHash = marker?.Value<string>("hash");
+        bool installed = marker != null;
+        bool pending = currentHash != null && appliedHash != currentHash;
+
+        int entityCount = 0;
+        try
+        {
+            var resp = new EntityManager().ReadEntities();
+            if (resp != null && resp.Success && resp.Object != null)
+                entityCount = resp.Object.Count(e => !e.System);
+        }
+        catch { }
+
+        var seedCounts = new JObject();
+        if (spec?["seed"] is JObject seed)
+        {
+            foreach (var prop in seed.Properties())
+            {
+                long n = 0;
+                try
+                {
+                    var recs = new ErpEql.EqlCommand($"SELECT id FROM {prop.Name}").Execute();
+                    n = recs?.TotalCount ?? 0;
+                }
+                catch { }
+                seedCounts[prop.Name] = n;
+            }
+        }
+
+        return new
+        {
+            installed,
+            bootstrap_present = currentHash != null,
+            applied_hash = appliedHash != null ? appliedHash.Substring(0, 8) : null,
+            current_hash = currentHash != null ? currentHash.Substring(0, 8) : null,
+            pending,
+            applied_on = marker?.Value<string>("appliedOn"),
+            entity_count = entityCount,
+            seed_counts = seedCounts
+        };
+    }
+
+    /// <summary>Re-apply <c>bootstrap.json</c> on demand (idempotent). Runs inside a system
+    /// security scope, mirroring the startup <c>Initialize</c> hook, so meta creation is
+    /// permitted. If the file is unchanged since it was last applied this is a no-op that
+    /// returns "already applied".</summary>
+    public static string Reprovision(IServiceProvider serviceProvider)
+    {
+        using (SecurityContext.OpenSystemScope())
+        {
+            return Apply(serviceProvider);
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -195,7 +272,7 @@ public static class Bootstrap
             "select" => new InputSelectField
             {
                 Options = OptionsOf(f),
-                DefaultValue = f.Value<string>("defaultValue") ?? ""
+                DefaultValue = f.Value<string>("defaultValue") ?? OptionsOf(f).FirstOrDefault()?.Value ?? ""
             },
             _ => null
         };
@@ -285,6 +362,61 @@ public static class Bootstrap
             return recs != null && recs.TotalCount > 0;
         }
         catch { return false; }
+    }
+
+    // For every guid-typed field of the entity whose seed value is a "@refEntity:uniqueValue"
+    // placeholder, replace it with the referenced record's id (looked up by the referenced
+    // entity's unique field). Non-placeholder guid values are left untouched.
+    private static void ResolveGuidRefs(string entity, EntityRecord rec, JObject spec)
+    {
+        var guidFields = GuidFieldsOf(spec, entity);
+        foreach (var fieldName in guidFields)
+        {
+            if (!HasField(rec, fieldName)) continue;
+            var raw = rec[fieldName] as string;
+            if (string.IsNullOrWhiteSpace(raw) || !raw.StartsWith("@")) continue;
+
+            var body = raw.Substring(1);
+            var colon = body.IndexOf(':');
+            if (colon <= 0) continue;
+            var refEntity = body.Substring(0, colon);
+            var refValue = body.Substring(colon + 1);
+            var refUnique = UniqueFieldOf(spec, refEntity);
+            if (refUnique == null) continue;
+
+            try
+            {
+                var p = new List<ErpEql.EqlParameter> { new ErpEql.EqlParameter("v", refValue) };
+                var found = new ErpEql.EqlCommand($"SELECT id FROM {refEntity} WHERE {refUnique} = @v", p).Execute();
+                if (found != null && found.TotalCount > 0)
+                {
+                    var idToken = found.First()["id"];
+                    rec[fieldName] = idToken is Guid g ? g : Guid.Parse(idToken.ToString());
+                }
+                else
+                {
+                    Console.WriteLine($"[Bootstrap] unresolved FK {entity}.{fieldName} = {raw} (no {refEntity} with {refUnique}='{refValue}')");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bootstrap] FK resolve error {entity}.{fieldName}={raw}: {ex.Message}");
+            }
+        }
+    }
+
+    private static List<string> GuidFieldsOf(JObject spec, string entity)
+    {
+        var list = new List<string>();
+        if (spec["entities"] is JArray entities)
+        {
+            var e = entities.FirstOrDefault(x => x.Value<string>("name") == entity);
+            if (e?["fields"] is JArray fields)
+                foreach (var f in fields)
+                    if ((f.Value<string>("type") ?? "").ToLowerInvariant() == "guid")
+                        list.Add(f.Value<string>("name"));
+        }
+        return list;
     }
 
     private static string ResolveBootstrapPath(IServiceProvider sp)
