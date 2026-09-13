@@ -62,15 +62,23 @@ The agent-side tool is [ErpTool](https://github.com/Graphene-Lab/ErpTool).
 
 ## Related repositories
 
-[WebVella-ERP-StencilJs](https://github.com/WebVella/WebVella-ERP-StencilJs)
+This fork builds on three upstream WebVella repositories. We consume them as build artifacts,
+not as source inside this tree.
 
-[WebVella-ERP-Seed](https://github.com/WebVella/WebVella-ERP-Seed)
+| Repository | What it is | How this project uses it |
+|---|---|---|
+| [WebVella-TagHelpers](https://github.com/WebVella/TagHelpers) | ASP.NET Core Razor TagHelper library (Bootstrap-based) | Consumed as the NuGet package `WebVella.TagHelpers` (see `AI.Erp.Web.csproj`). |
+| [WebVella-ERP-StencilJs](https://github.com/WebVella/WebVella-ERP-StencilJs) | StencilJS web components (`wv-*`) for the ERP UI | Consumed as prebuilt JS bundles under each plugin's `wwwroot/js/`. |
+| [WebVella-ERP-Seed](https://github.com/WebVella/WebVella-ERP-Seed) | A starter seed project for a WebVella ERP site | Not used directly. This fork ships its own seed in `bootstrap.json`. |
 
-[WebVella-TagHelpers](https://github.com/WebVella/TagHelpers)
+We do not vendor the source of these repositories, and we do not use git submodules. If a
+component must be customized, the path is to fork that repository, rebuild it, and drop the
+new artifact into this project.
 
 ### Third party libraries
 
-* see [LIBRARIES](https://github.com/WebVella/WebVella-ERP/blob/master/LIBRARIES.md) files
+* see [LIBRARIES](LIBRARIES.md) for the full list of third-party libraries and the AI-agent
+  integration diagram.
 
 ## License
 
