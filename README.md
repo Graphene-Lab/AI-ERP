@@ -52,6 +52,7 @@ records can be left to the agent instead of being done manually.
 
 ## Documentation
 
+* [Architecture](ARCHITECTURE.md) — how the whole system is put together.
 * [First-run setup](docs/FIRST-RUN-SETUP.md) — install and configure the ERP with no human installer.
 * [Configuration](docs/CONFIGURATION.md) — the ERP settings and the agent tool settings.
 * [Integration with AgentBridge](docs/AGENTBRIDGE-INTEGRATION.md) — how the agent drives the ERP through ErpTool.
