@@ -22,6 +22,35 @@ If you like this project and want it to continue, you can support it by:
 * contributing to the source;
 * becoming a Sponsor: click the Sponsor button. Thank you in advance.
 
+## Why an AI-driven ERP
+
+A fully automated ERP is no longer a distant idea. The key is an **AI agent** that treats the ERP
+like a tool — a digital worker that does not need a person to click buttons or type data. It
+uses the same information and the same rules that a human employee would use.
+
+A traditional ERP is powerful but complex. People must move through many screens, remember the
+steps, and spend hours on repetitive work. An AI agent takes that busywork away. In AI ERP the
+agent first reads your data model — which types exist and which fields they have — and then works
+the whole cycle for you:
+
+* **Sales:** create a quote, turn it into an order, deliver it, issue the invoice, and record the
+  payment. Each step is checked against the one before it, so you cannot deliver more than you
+  sold or invoice what was never delivered.
+* **Purchasing:** raise a purchase request, turn it into an order, receive the goods, match the
+  supplier bill to the order and the receipt, and pay it.
+* **Stock:** keep the per-warehouse stock and the movement ledger in sync, move stock between
+  warehouses, reserve it for an order, and run a cycle count.
+
+This is not a demo. These are real operations that run inside the ERP, through the same API and
+the same permissions a person uses. The agent cannot create a record it is not allowed to create,
+or delete one it cannot delete. The same checks that protect your data from people also apply to
+the agent.
+
+The point is not only speed. It is about freeing people. When the agent takes the repetitive,
+rule-based steps, employees spend their time on judgment, relationships, and the problems that
+need a human touch. The ERP stops being a tool that people struggle to use and becomes a partner
+that works in the background, handled by an agent that understands the business.
+
 ## The ERP works with an AI agent
 
 AI ERP is made to work together with an AI agent. The agent can learn your data structure —
@@ -43,12 +72,6 @@ the agent. The agent does not go around them.
 
 The agent is used through **AgentBridge**, the companion program. AgentBridge is where you talk
 with the agent and let it work on the ERP. You do not need to use the ERP screens yourself.
-
-## Automatic work
-
-The agent can read the data and change it on its own. Because of this, routine tasks can run
-automatically, without a person doing every step by hand. For example, recurring updates to
-records can be left to the agent instead of being done manually.
 
 ## Documentation
 
