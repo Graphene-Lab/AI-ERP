@@ -1,8 +1,7 @@
 [![Project Homepage](https://img.shields.io/badge/Homepage-blue?style=for-the-badge)](https://webvella.com)
-[![Dotnet](https://img.shields.io/badge/platform-.NET-blue?style=for-the-badge)](https://www.nuget.org/packages/AI.Erp)
-[![GitHub Repo stars](https://img.shields.io/github/stars/WebVella/WebVella-ERP?style=for-the-badge)](https://github.com/WebVella/WebVella-ERP/stargazers)
-[![Nuget version](https://img.shields.io/nuget/v/AI.Erp?style=for-the-badge)](https://www.nuget.org/packages/AI.Erp)
-[![Nuget download](https://img.shields.io/nuget/dt/AI.Erp?style=for-the-badge)](https://www.nuget.org/packages/AI.Erp)
+[![Dotnet](https://img.shields.io/badge/platform-.NET%2010-blue?style=for-the-badge)](https://dotnet.microsoft.com/)
+[![GitHub Repo stars](https://img.shields.io/github/stars/Graphene-Lab/AI-ERP?style=for-the-badge)](https://github.com/Graphene-Lab/AI-ERP/stargazers)
+[![Download](https://img.shields.io/github/v/release/Graphene-Lab/AI-ERP?label=Download&color=brightgreen&style=for-the-badge)](https://github.com/Graphene-Lab/AI-ERP/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green?style=for-the-badge)](https://github.com/Graphene-Lab/AI-ERP/blob/master/LICENSE.txt)
 
 ---
@@ -68,10 +67,40 @@ and the agent performs the real operations inside the ERP. Every operation runs 
 user, so the same permissions, rules and checks that protect your data from people also apply to
 the agent. The agent does not go around them.
 
-## Operated with AgentBridge
+## The ecosystem: three parts working together
 
-The agent is used through **AgentBridge**, the companion program. AgentBridge is where you talk
-with the agent and let it work on the ERP. You do not need to use the ERP screens yourself.
+AI ERP is one of three small programs that work as a team. Each has one clear job. Together
+they let an AI agent run the daily work of a company.
+
+| Part | Repo | Job |
+|---|---|---|
+| **AI ERP** | this repository | The ERP. It stores the data, runs the real business operations, and enforces the rules and permissions. |
+| **AgentBridge** | [Graphene-Lab/AgentBridge](https://github.com/Graphene-Lab/AgentBridge) | The chat front-end. You talk to the agent here. It hosts the agent loop (AIOrchestrator) and the tools. |
+| **ErpTool** | [Graphene-Lab/ErpTool](https://github.com/Graphene-Lab/ErpTool) | The bridge tool. It turns the agent's decisions into secure calls to the ERP. It runs inside AgentBridge as a plugin. |
+
+Inside AI ERP, the **AgentApi** plugin exposes a small REST API (`api/v3.0/p/agent/*`) that
+ErpTool calls. The whole chain looks like this:
+
+```
+You (plain language)
+   ↓
+AgentBridge  →  AIOrchestrator (the agent)
+   ↓  picks a tool and a method
+ErpTool  →  HTTPS + JWT  →  AgentApi  →  AI ERP managers  →  your data
+```
+
+1. You ask the agent something: "deliver order SO-1042 and invoice it".
+2. The agent reads the ERP schema, picks the right ErpTool method, and calls it.
+3. ErpTool sends an HTTPS request to the AgentApi, with a JWT it got by logging in.
+4. The AgentApi runs the call through the ERP's own managers. The ERP checks the rules and
+   the permissions of the logged-in account, then does the work.
+5. The result comes back and the agent answers you.
+
+The agent never touches the database directly. It acts as a normal ERP user, so the same
+permissions and checks that protect your data from people also apply to the agent.
+
+**To run the whole system**, you install all three and connect them. The step-by-step guide is
+in the wiki: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki).
 
 ## Documentation
 

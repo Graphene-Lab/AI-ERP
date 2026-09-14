@@ -763,6 +763,10 @@ public static class ComposedOperations
         var productId = Guid.Parse(product["id"].ToString());
         var wh = ResolveWarehouseByCode(warehouseCode);
         var recMan = new RecordManager();
+        // Take the product lock before reading current: the delta is computed from it,
+        // so the read and the write below must be one atomic step. The lock is re-entrant
+        // within the transaction, so the nested AdjustStock call is a no-op.
+        LockProductStock(productId);
         var current = StockQty(productId, wh.id);
         var delta = Round(newQuantity - current);
         AdjustStock(recMan, productId, wh.id, delta, "adjustment", "manual", Guid.NewGuid(), Dec(product["unit_cost"]), null, null, wh.allowNegative);

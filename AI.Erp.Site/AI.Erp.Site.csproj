@@ -6,6 +6,15 @@
 		<AssemblyName>AI.Erp.Site</AssemblyName>
 		<OutputType>Exe</OutputType>
 		<PackageId>AI.Erp.Site</PackageId>
+		<!-- Release versioning, same date-based scheme as AgentBridge: 1.yy.MM.dd.
+		     IsPrerelease is the release gate. While it is true (the default), a push to
+		     master builds a "-prerelease" version and creates NO GitHub release. To ship,
+		     set IsPrerelease=false and push master: the release.yml workflow then tags
+		     v1.yy.MM.dd and publishes the GitHub Release. -->
+		<ReleaseDate Condition="'$(ReleaseDate)' == ''">$([System.DateTime]::UtcNow.ToString("yy.MM.dd"))</ReleaseDate>
+		<IsPrerelease Condition="'$(IsPrerelease)' == ''">true</IsPrerelease>
+		<Version Condition="'$(IsPrerelease)' == 'true'">1.$(ReleaseDate)-prerelease</Version>
+		<Version Condition="'$(IsPrerelease)' != 'true'">1.$(ReleaseDate)</Version>
 		<RestoreProjectStyle>PackageReference</RestoreProjectStyle>
 		<TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
 		<TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>

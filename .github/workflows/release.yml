@@ -1,0 +1,149 @@
+name: Release AI ERP
+
+# Automatic release, same model as AgentBridge.
+#
+# The gate is <IsPrerelease> in AI.Erp.Site/AI.Erp.Site.csproj.
+#   IsPrerelease=true  (default) -> a push to master builds a "-prerelease" version and
+#                                   creates NO GitHub release.
+#   IsPrerelease=false           -> a push to master tags v1.yy.MM.dd and publishes the
+#                                   GitHub Release with the platform archives.
+#
+# To ship: set <IsPrerelease>false</IsPrerelease> in the csproj and push master.
+# A manual run is also possible with workflow_dispatch (it honours the same gate).
+#
+# The version is date-based: 1.yy.MM.dd (for example 1.26.09.14). The tag is v + version.
+# If today's tag already exists, the run is skipped so a version is never released twice.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One release run at a time per branch. A new push never cancels a queued or running
+# release (cancel-in-progress: false), so a quick double push cannot race the Actions queue.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      do_release: ${{ steps.gate.outputs.do_release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Detect version + release gate
+        id: ver
+        shell: bash
+        run: |
+          VER=$(dotnet msbuild AI.Erp.Site/AI.Erp.Site.csproj -getProperty:Version -nologo \
+                | grep -oE '[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?' | head -n1)
+          PREREL=$(dotnet msbuild AI.Erp.Site/AI.Erp.Site.csproj -getProperty:IsPrerelease -nologo \
+                | grep -oE 'true|false' | head -n1)
+          echo "version=$VER"
+          echo "prerelease=${PREREL:-true}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PREREL:-true}" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to release
+        id: gate
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          PRERELEASE: ${{ steps.ver.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            echo "IsPrerelease=true -> prerelease build, no GitHub release"
+            echo "do_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+            echo "Tag v$VERSION already exists -> no second release for this version"
+            echo "do_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "do_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.do_release == 'true'
+    name: Build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish self-contained
+        shell: bash
+        run: |
+          dotnet publish AI.Erp.Site/AI.Erp.Site.csproj -c Release -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:DebugType=None -p:DebugSymbols=false \
+            -o ./publish
+
+      - name: Package
+        shell: bash
+        run: |
+          cd publish
+          tar -czf ../aierp-${{ matrix.rid }}.tar.gz .
+          cd ..
+          ls -lh aierp-${{ matrix.rid }}.tar.gz
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: aierp-${{ matrix.rid }}
+          path: aierp-${{ matrix.rid }}.tar.gz
+
+  release:
+    needs: [check-version, build]
+    if: needs.check-version.outputs.do_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: aierp-*
+          path: dist
+          merge-multiple: true
+
+      - name: Tag the triggering commit
+        run: |
+          git tag "v${{ needs.check-version.outputs.version }}" "$GITHUB_SHA"
+          git push origin "v${{ needs.check-version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: AI ERP ${{ needs.check-version.outputs.version }}
+          body: |
+            AI ERP ${{ needs.check-version.outputs.version }}
+
+            Self-contained builds (PostgreSQL required, provided separately).
+            Run with: `dotnet AI.Erp.Site.dll --urls http://127.0.0.1:5080`
+            See the wiki for the full ecosystem install guide.
+          files: |
+            dist/aierp-win-x64.tar.gz
+            dist/aierp-linux-x64.tar.gz
