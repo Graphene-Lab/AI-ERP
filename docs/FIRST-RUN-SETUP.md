@@ -3,8 +3,13 @@
 ## What this is
 
 AI-ERP can be installed and configured by an AI agent with no human at the keyboard.
-There is no interactive setup wizard. The system sets itself up on the first start.
+The ERP itself has no interactive wizard: it sets itself up on the first start.
 You only need a running database and one JSON file that describes the company.
+
+> To prepare that JSON file and the rest of the ecosystem (AgentBridge + the ErpTool plugin)
+> in one go, use the **setup wizard** (`tools/setup-wizard.sh` / `tools/setup-wizard.ps1`).
+> It writes the company record into `bootstrap.json` for you. Full guide:
+> [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki/Install-the-Ecosystem).
 
 ## Prerequisites
 
