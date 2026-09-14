@@ -46,7 +46,7 @@ public static class ComposedOperations
         if (Has(customer, "payment_term_id") && customer["payment_term_id"] != null)
             quote["payment_term_id"] = Guid.Parse(customer["payment_term_id"].ToString());
 
-        var created = recMan.CreateRecord("quote", quote);
+        var created = MustCreate(recMan,"quote", quote);
         if (!created.Success) throw new InvalidOperationException(Err(created, "create quote"));
         var quoteId = Id(created);
 
@@ -73,14 +73,14 @@ public static class ComposedOperations
             line["discount_percent"] = disc;
             if (vatId != Guid.Empty) line["vat_code_id"] = vatId;
             line["line_total"] = lineTotal;
-            var lr = recMan.CreateRecord("quote_line", line);
+            var lr = MustCreate(recMan,"quote_line", line);
             if (!lr.Success) throw new InvalidOperationException(Err(lr, "create quote line"));
 
             outLines.Add(new { sku = product["sku"], quantity = qty, unit_price = price, discount_percent = disc, vat_rate = rate, line_total = lineTotal, vat_amount = vat });
         }
 
         var upd = new EntityRecord { ["id"] = quoteId, ["subtotal"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) };
-        recMan.UpdateRecord("quote", upd);
+        MustUpdate(recMan,"quote", upd);
 
         return new { quote_id = quoteId, quote_number = quote["quote_number"], subtotal = Round(subtotal), vat_total = Round(vatTotal), grand_total = Round(subtotal + vatTotal), lines = outLines };
     }
@@ -103,7 +103,7 @@ public static class ComposedOperations
         order["currency"] = quote["currency"];
         if (Has(quote, "payment_term_id") && quote["payment_term_id"] != null)
             order["payment_term_id"] = Guid.Parse(quote["payment_term_id"].ToString());
-        var created = recMan.CreateRecord("sales_order", order);
+        var created = MustCreate(recMan,"sales_order", order);
         if (!created.Success) throw new InvalidOperationException(Err(created, "create order from quote"));
         var orderId = Id(created);
 
@@ -130,11 +130,11 @@ public static class ComposedOperations
             line["qty_delivered"] = 0m;
             line["qty_invoiced"] = 0m;
             line["line_total"] = lineTotal;
-            recMan.CreateRecord("sales_order_line", line);
+            MustCreate(recMan,"sales_order_line", line);
         }
 
-        recMan.UpdateRecord("sales_order", new EntityRecord { ["id"] = orderId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
-        recMan.UpdateRecord("quote", new EntityRecord { ["id"] = quoteId, ["status"] = "converted" });
+        MustUpdate(recMan,"sales_order", new EntityRecord { ["id"] = orderId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
+        MustUpdate(recMan,"quote", new EntityRecord { ["id"] = quoteId, ["status"] = "converted" });
 
         return new { order_id = orderId, order_number = order["order_number"], from_quote = quote["quote_number"], total = Round(subtotal), vat_total = Round(vatTotal), grand_total = Round(subtotal + vatTotal) };
     }
@@ -160,7 +160,7 @@ public static class ComposedOperations
         if (Has(customer, "payment_term_id") && customer["payment_term_id"] != null)
             order["payment_term_id"] = Guid.Parse(customer["payment_term_id"].ToString());
 
-        var created = recMan.CreateRecord("sales_order", order);
+        var created = MustCreate(recMan,"sales_order", order);
         if (!created.Success) throw new InvalidOperationException(Err(created, "create sales order"));
         var orderId = Id(created);
 
@@ -189,13 +189,13 @@ public static class ComposedOperations
             line["qty_delivered"] = 0m;
             line["qty_invoiced"] = 0m;
             line["line_total"] = lineTotal;
-            var lr = recMan.CreateRecord("sales_order_line", line);
+            var lr = MustCreate(recMan,"sales_order_line", line);
             if (!lr.Success) throw new InvalidOperationException(Err(lr, "create order line"));
 
             outLines.Add(new { sku = product["sku"], quantity = qty, unit_price = price, discount_percent = disc, vat_rate = rate, line_total = lineTotal, vat_amount = vat });
         }
 
-        recMan.UpdateRecord("sales_order", new EntityRecord { ["id"] = orderId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
+        MustUpdate(recMan,"sales_order", new EntityRecord { ["id"] = orderId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
         return new { order_id = orderId, order_number = order["order_number"], total = Round(subtotal), vat_total = Round(vatTotal), grand_total = Round(subtotal + vatTotal), lines = outLines };
     }
 
@@ -258,7 +258,7 @@ public static class ComposedOperations
         if (!string.IsNullOrWhiteSpace(transportCause)) delivery["transport_cause"] = transportCause;
         if (!string.IsNullOrWhiteSpace(carrier)) delivery["carrier"] = carrier;
         if (!string.IsNullOrWhiteSpace(trackingNumber)) delivery["tracking_number"] = trackingNumber;
-        var dr = recMan.CreateRecord("goods_delivery", delivery);
+        var dr = MustCreate(recMan,"goods_delivery", delivery);
         if (!dr.Success) throw new InvalidOperationException(Err(dr, "create delivery"));
         var deliveryId = Id(dr);
 
@@ -267,7 +267,7 @@ public static class ComposedOperations
         {
             AdjustStock(recMan, p.productId, warehouse.id, -p.qty, "issue", "goods_delivery", deliveryId, Dec(FindById("product", p.productId)["unit_cost"]), p.lot, p.expiry, warehouse.allowNegative);
 
-            recMan.CreateRecord("goods_delivery_line", new EntityRecord
+            MustCreate(recMan,"goods_delivery_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["delivery_id"] = deliveryId,
@@ -277,12 +277,12 @@ public static class ComposedOperations
                 ["expiry_date"] = p.expiry ?? (object)null
             });
 
-            recMan.UpdateRecord("sales_order_line", new EntityRecord { ["id"] = Guid.Parse(p.oline["id"].ToString()), ["qty_delivered"] = Round(Dec(p.oline["qty_delivered"]) + p.qty) });
+            MustUpdate(recMan,"sales_order_line", new EntityRecord { ["id"] = Guid.Parse(p.oline["id"].ToString()), ["qty_delivered"] = Round(Dec(p.oline["qty_delivered"]) + p.qty) });
             delivered.Add(new { sku = FindById("product", p.productId)["sku"], quantity = p.qty, lot_number = p.lot });
         }
 
         var status = ComputeDeliveryStatus(orderId);
-        recMan.UpdateRecord("sales_order", new EntityRecord { ["id"] = orderId, ["status"] = status });
+        MustUpdate(recMan,"sales_order", new EntityRecord { ["id"] = orderId, ["status"] = status });
         return (deliveryId, delivery["delivery_number"].ToString(), warehouse.code, delivered, status);
     }
 
@@ -307,7 +307,7 @@ public static class ComposedOperations
         inv["status"] = "sent";
         if (Has(order, "payment_term_id") && order["payment_term_id"] != null)
             inv["payment_term_id"] = Guid.Parse(order["payment_term_id"].ToString());
-        var ir = recMan.CreateRecord("invoice", inv);
+        var ir = MustCreate(recMan,"invoice", inv);
         if (!ir.Success) throw new InvalidOperationException(Err(ir, "create invoice"));
         var invoiceId = Id(ir);
 
@@ -324,7 +324,7 @@ public static class ComposedOperations
             var vat = Round(lineTotal * VatRate(vatId) / 100m);
             amount += lineTotal; vatTotal += vat;
 
-            recMan.CreateRecord("invoice_line", new EntityRecord
+            MustCreate(recMan,"invoice_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["invoice_id"] = invoiceId,
@@ -336,7 +336,7 @@ public static class ComposedOperations
                 ["line_total"] = lineTotal,
                 ["vat_amount"] = vat
             });
-            recMan.UpdateRecord("sales_order_line", new EntityRecord { ["id"] = Guid.Parse(ol["id"].ToString()), ["qty_invoiced"] = Round(Dec(ol["qty_invoiced"]) + qtyToInvoice) });
+            MustUpdate(recMan,"sales_order_line", new EntityRecord { ["id"] = Guid.Parse(ol["id"].ToString()), ["qty_invoiced"] = Round(Dec(ol["qty_invoiced"]) + qtyToInvoice) });
             invLines.Add(new { product_id = ol["product_id"], quantity = qtyToInvoice, line_total = lineTotal, vat_amount = vat });
         }
 
@@ -347,8 +347,8 @@ public static class ComposedOperations
             throw new InvalidOperationException("Nothing delivered to invoice. Deliver the order first.");
         }
 
-        recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = invoiceId, ["amount"] = Round(amount), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(amount + vatTotal) });
-        recMan.UpdateRecord("sales_order", new EntityRecord { ["id"] = orderId, ["status"] = "invoiced" });
+        MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = invoiceId, ["amount"] = Round(amount), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(amount + vatTotal) });
+        MustUpdate(recMan,"sales_order", new EntityRecord { ["id"] = orderId, ["status"] = "invoiced" });
 
         return new { invoice_id = invoiceId, invoice_number = inv["invoice_number"], amount = Round(amount), vat_total = Round(vatTotal), grand_total = Round(amount + vatTotal), due_date = ((DateTime)inv["due_date"]).ToString("yyyy-MM-dd"), lines = invLines };
     }
@@ -367,14 +367,14 @@ public static class ComposedOperations
         pay["amount"] = amount;
         pay["payment_date"] = ParseDate(paymentDate) ?? DateTime.Today;
         pay["method"] = string.IsNullOrWhiteSpace(method) ? "bank" : method;
-        var r = recMan.CreateRecord("payment", pay);
+        var r = MustCreate(recMan,"payment", pay);
         if (!r.Success) throw new InvalidOperationException(Err(r, "create payment"));
         var paymentId = Id(r);
 
         var payable = PayableOf(invoice);
         var paidTotal = Sum("SELECT amount FROM payment WHERE invoice_id = @id", invoiceId);
         var newStatus = paidTotal >= payable ? "paid" : "partial";
-        recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = invoiceId, ["status"] = newStatus });
+        MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = invoiceId, ["status"] = newStatus });
 
         return new { payment_id = paymentId, payment_ref = pay["payment_ref"], invoice_status = newStatus, paid_total = Round(paidTotal), balance = Round(payable - paidTotal) };
     }
@@ -401,7 +401,7 @@ public static class ComposedOperations
         cn["vat_total"] = vatTotal;
         cn["reason"] = reason ?? "";
         cn["status"] = "issued";
-        var r = recMan.CreateRecord("credit_note", cn);
+        var r = MustCreate(recMan,"credit_note", cn);
         if (!r.Success) throw new InvalidOperationException(Err(r, "create credit note"));
         var cnId = Id(r);
 
@@ -410,7 +410,7 @@ public static class ComposedOperations
         var credited = Sum("SELECT amount FROM credit_note WHERE invoice_id = @id", invoiceId);
         var outstanding = payable - paid - credited;
         var newStatus = outstanding <= 0.005m ? "credited" : invoice["status"]?.ToString();
-        recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = invoiceId, ["status"] = newStatus });
+        MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = invoiceId, ["status"] = newStatus });
 
         return new { credit_note_id = cnId, credit_note_number = cn["credit_note_number"], amount = Round(amount), vat_total = vatTotal, invoice_status = newStatus, outstanding = Round(outstanding) };
     }
@@ -432,7 +432,7 @@ public static class ComposedOperations
             ["request_date"] = DateTime.Today,
             ["status"] = "draft"
         };
-        var cr = recMan.CreateRecord("purchase_request", req);
+        var cr = MustCreate(recMan,"purchase_request", req);
         if (!cr.Success) throw new InvalidOperationException(Err(cr, "create purchase request"));
         var reqId = Id(cr);
 
@@ -442,7 +442,7 @@ public static class ComposedOperations
             var product = FindProductBySku(l.Value<string>("sku")) ?? throw UnknownSku(l);
             var qty = l.Value<decimal?>("quantity") ?? 0m;
             var est = l.Value<decimal?>("estimatedCost") ?? Dec(product["unit_cost"]);
-            recMan.CreateRecord("purchase_request_line", new EntityRecord
+            MustCreate(recMan,"purchase_request_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["request_id"] = reqId,
@@ -475,7 +475,7 @@ public static class ComposedOperations
         po["currency"] = supplier["currency"]?.ToString() ?? "EUR";
         if (Has(supplier, "payment_term_id") && supplier["payment_term_id"] != null)
             po["payment_term_id"] = Guid.Parse(supplier["payment_term_id"].ToString());
-        var cr = recMan.CreateRecord("purchase_order", po);
+        var cr = MustCreate(recMan,"purchase_order", po);
         if (!cr.Success) throw new InvalidOperationException(Err(cr, "create PO from request"));
         var poId = Id(cr);
 
@@ -492,7 +492,7 @@ public static class ComposedOperations
             var vat = Round(lineTotal * VatRate(vatId) / 100m);
             subtotal += lineTotal; vatTotal += vat;
 
-            recMan.CreateRecord("purchase_order_line", new EntityRecord
+            MustCreate(recMan,"purchase_order_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["purchase_order_id"] = poId,
@@ -504,8 +504,8 @@ public static class ComposedOperations
                 ["line_total"] = lineTotal
             });
         }
-        recMan.UpdateRecord("purchase_order", new EntityRecord { ["id"] = poId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
-        recMan.UpdateRecord("purchase_request", new EntityRecord { ["id"] = requestId, ["status"] = "converted" });
+        MustUpdate(recMan,"purchase_order", new EntityRecord { ["id"] = poId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
+        MustUpdate(recMan,"purchase_request", new EntityRecord { ["id"] = requestId, ["status"] = "converted" });
         return new { purchase_order_id = poId, po_number = po["po_number"], from_request = req["request_number"], total = Round(subtotal), vat_total = Round(vatTotal), grand_total = Round(subtotal + vatTotal) };
     }
 
@@ -528,7 +528,7 @@ public static class ComposedOperations
         po["currency"] = supplier["currency"]?.ToString() ?? "EUR";
         if (Has(supplier, "payment_term_id") && supplier["payment_term_id"] != null)
             po["payment_term_id"] = Guid.Parse(supplier["payment_term_id"].ToString());
-        var created = recMan.CreateRecord("purchase_order", po);
+        var created = MustCreate(recMan,"purchase_order", po);
         if (!created.Success) throw new InvalidOperationException(Err(created, "create purchase order"));
         var poId = Id(created);
 
@@ -544,7 +544,7 @@ public static class ComposedOperations
             var vat = Round(lineTotal * VatRate(vatId) / 100m);
             subtotal += lineTotal; vatTotal += vat;
 
-            recMan.CreateRecord("purchase_order_line", new EntityRecord
+            MustCreate(recMan,"purchase_order_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["purchase_order_id"] = poId,
@@ -557,7 +557,7 @@ public static class ComposedOperations
             });
             outLines.Add(new { sku = product["sku"], quantity = qty, unit_cost = cost, line_total = lineTotal });
         }
-        recMan.UpdateRecord("purchase_order", new EntityRecord { ["id"] = poId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
+        MustUpdate(recMan,"purchase_order", new EntityRecord { ["id"] = poId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
         return new { purchase_order_id = poId, po_number = po["po_number"], total = Round(subtotal), vat_total = Round(vatTotal), grand_total = Round(subtotal + vatTotal), lines = outLines };
     }
 
@@ -579,7 +579,7 @@ public static class ComposedOperations
         receipt["warehouse_id"] = warehouse.id;
         receipt["receipt_date"] = DateTime.Today;
         receipt["status"] = "confirmed";
-        var rr = recMan.CreateRecord("goods_receipt", receipt);
+        var rr = MustCreate(recMan,"goods_receipt", receipt);
         if (!rr.Success) throw new InvalidOperationException(Err(rr, "create goods receipt"));
         var receiptId = Id(rr);
 
@@ -598,9 +598,9 @@ public static class ComposedOperations
             var expiry = ParseDate(l.Value<string>("expiry"));
 
             AdjustStock(recMan, productId, warehouse.id, qty, "receipt", "goods_receipt", receiptId, cost, lot, expiry, true);
-            recMan.UpdateRecord("purchase_order_line", new EntityRecord { ["id"] = Guid.Parse(poline["id"].ToString()), ["qty_received"] = Round(Dec(poline["qty_received"]) + qty) });
+            MustUpdate(recMan,"purchase_order_line", new EntityRecord { ["id"] = Guid.Parse(poline["id"].ToString()), ["qty_received"] = Round(Dec(poline["qty_received"]) + qty) });
 
-            recMan.CreateRecord("goods_receipt_line", new EntityRecord
+            MustCreate(recMan,"goods_receipt_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["receipt_id"] = receiptId,
@@ -615,7 +615,7 @@ public static class ComposedOperations
         }
 
         var status = ComputeReceiveStatus(poId);
-        recMan.UpdateRecord("purchase_order", new EntityRecord { ["id"] = poId, ["status"] = status });
+        MustUpdate(recMan,"purchase_order", new EntityRecord { ["id"] = poId, ["status"] = status });
         return new { receipt_id = receiptId, receipt_number = receipt["receipt_number"], warehouse = warehouse.code, received, po_status = status };
     }
 
@@ -635,7 +635,7 @@ public static class ComposedOperations
         bill["due_date"] = ParseDate(dueDate) ?? DateTime.Today.AddDays(30);
         bill["status"] = "registered";
         bill["triple_match_status"] = "pending";
-        var br = recMan.CreateRecord("purchase_invoice", bill);
+        var br = MustCreate(recMan,"purchase_invoice", bill);
         if (!br.Success) throw new InvalidOperationException(Err(br, "create purchase invoice"));
         var billId = Id(br);
 
@@ -667,7 +667,7 @@ public static class ComposedOperations
             var vat = Round(lineTotal * VatRate(vatId) / 100m);
             amount += lineTotal; vatTotal += vat;
 
-            recMan.CreateRecord("purchase_invoice_line", new EntityRecord
+            MustCreate(recMan,"purchase_invoice_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["bill_id"] = billId,
@@ -682,8 +682,8 @@ public static class ComposedOperations
         }
 
         var match = allMatched ? "matched" : "mismatched";
-        recMan.UpdateRecord("purchase_invoice", new EntityRecord { ["id"] = billId, ["amount"] = Round(amount), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(amount + vatTotal), ["triple_match_status"] = match });
-        recMan.UpdateRecord("purchase_order", new EntityRecord { ["id"] = poId, ["status"] = "invoiced" });
+        MustUpdate(recMan,"purchase_invoice", new EntityRecord { ["id"] = billId, ["amount"] = Round(amount), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(amount + vatTotal), ["triple_match_status"] = match });
+        MustUpdate(recMan,"purchase_order", new EntityRecord { ["id"] = poId, ["status"] = "invoiced" });
         return new { bill_id = billId, bill_number = bill["bill_number"], amount = Round(amount), vat_total = Round(vatTotal), grand_total = Round(amount + vatTotal), triple_match_status = match, mismatches };
     }
 
@@ -702,14 +702,14 @@ public static class ComposedOperations
         pay["amount"] = amount;
         pay["payment_date"] = ParseDate(paymentDate) ?? DateTime.Today;
         pay["method"] = string.IsNullOrWhiteSpace(method) ? "bank" : method;
-        var r = recMan.CreateRecord("supplier_payment", pay);
+        var r = MustCreate(recMan,"supplier_payment", pay);
         if (!r.Success) throw new InvalidOperationException(Err(r, "create supplier payment"));
         var payId = Id(r);
 
         var payable = PayableOf(bill);
         var paidTotal = Sum("SELECT amount FROM supplier_payment WHERE bill_id = @id", billId);
         var newStatus = paidTotal >= payable ? "paid" : "partial";
-        recMan.UpdateRecord("purchase_invoice", new EntityRecord { ["id"] = billId, ["status"] = newStatus });
+        MustUpdate(recMan,"purchase_invoice", new EntityRecord { ["id"] = billId, ["status"] = newStatus });
         return new { payment_id = payId, payment_ref = pay["payment_ref"], bill_status = newStatus, paid_total = Round(paidTotal), balance = Round(payable - paidTotal) };
     }
 
@@ -730,7 +730,7 @@ public static class ComposedOperations
             ["reason"] = reason ?? "",
             ["status"] = "issued"
         };
-        var r = recMan.CreateRecord("supplier_credit_note", cn);
+        var r = MustCreate(recMan,"supplier_credit_note", cn);
         if (!r.Success) throw new InvalidOperationException(Err(r, "create supplier credit note"));
         return new { credit_note_id = Id(r), credit_note_number = cn["credit_note_number"], amount = Round(amount) };
     }
@@ -786,7 +786,7 @@ public static class ComposedOperations
         cust["blocked"] = false;
         if (!string.IsNullOrWhiteSpace(email)) cust["email"] = email;
         if (!string.IsNullOrWhiteSpace(currency)) cust["currency"] = currency;
-        var cr = recMan.CreateRecord("customer", cust);
+        var cr = MustCreate(recMan,"customer", cust);
         if (!cr.Success) throw new InvalidOperationException(Err(cr, "create customer"));
         var customerId = Id(cr);
 
@@ -808,7 +808,7 @@ public static class ComposedOperations
                 if (!string.IsNullOrWhiteSpace(c.Value<string>("email"))) ct["email"] = c.Value<string>("email");
                 if (!string.IsNullOrWhiteSpace(c.Value<string>("phone"))) ct["phone"] = c.Value<string>("phone");
                 ct["is_primary"] = first;
-                var ctr = recMan.CreateRecord("contact", ct);
+                var ctr = MustCreate(recMan,"contact", ct);
                 if (!ctr.Success) throw new InvalidOperationException(Err(ctr, "create contact"));
                 outContacts.Add(new { name = ct["name"], email = c.Value<string>("email") ?? "", is_primary = first });
                 first = false;
@@ -837,7 +837,7 @@ public static class ComposedOperations
             if (!string.IsNullOrWhiteSpace(country)) rec["country"] = country;
             if (!string.IsNullOrWhiteSpace(postal)) rec["postal_code"] = postal;
         }
-        var r = recMan.CreateRecord("customer_address", rec);
+        var r = MustCreate(recMan,"customer_address", rec);
         if (!r.Success) throw new InvalidOperationException(Err(r, "create customer address"));
         return new { kind, line1 = line1 ?? "", city = city ?? "", country = country ?? "" };
     }
@@ -862,7 +862,7 @@ public static class ComposedOperations
                 rec["product_id"] = productId;
                 rec["code"] = code;
                 rec["barcode_type"] = string.IsNullOrWhiteSpace(b.Value<string>("barcode_type")) ? "ean13" : b.Value<string>("barcode_type");
-                var r = recMan.CreateRecord("product_barcode", rec);
+                var r = MustCreate(recMan,"product_barcode", rec);
                 if (!r.Success) throw new InvalidOperationException(Err(r, "create product barcode"));
                 barcodesAdded++;
             }
@@ -884,7 +884,7 @@ public static class ComposedOperations
                 rec["lead_time_days"] = s.Value<decimal?>("lead_time_days") ?? 0m;
                 rec["unit_cost"] = s.Value<decimal?>("unit_cost") ?? 0m;
                 rec["is_default"] = s.Value<bool?>("is_default") ?? false;
-                var r = recMan.CreateRecord("product_supplier", rec);
+                var r = MustCreate(recMan,"product_supplier", rec);
                 if (!r.Success) throw new InvalidOperationException(Err(r, "create product supplier"));
                 suppliersAdded++;
             }
@@ -978,7 +978,7 @@ public static class ComposedOperations
             if (ag != null) { order["sales_agent_id"] = Guid.Parse(ag["id"].ToString()); agent = agentName; }
         }
 
-        var created = recMan.CreateRecord("sales_order", order);
+        var created = MustCreate(recMan,"sales_order", order);
         if (!created.Success) throw new InvalidOperationException(Err(created, "create sales order"));
         var orderId = Id(created);
 
@@ -1007,11 +1007,11 @@ public static class ComposedOperations
             line["qty_delivered"] = 0m;
             line["qty_invoiced"] = 0m;
             line["line_total"] = lineTotal;
-            var lr = recMan.CreateRecord("sales_order_line", line);
+            var lr = MustCreate(recMan,"sales_order_line", line);
             if (!lr.Success) throw new InvalidOperationException(Err(lr, "create order line"));
             outLines.Add(new { sku = product["sku"], quantity = qty, unit_price = price, discount_percent = disc, vat_rate = rate, line_total = lineTotal, vat_amount = vat });
         }
-        recMan.UpdateRecord("sales_order", new EntityRecord { ["id"] = orderId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
+        MustUpdate(recMan,"sales_order", new EntityRecord { ["id"] = orderId, ["total"] = Round(subtotal), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(subtotal + vatTotal) });
 
         return new { order_id = orderId, order_number = order["order_number"], confirmed_date = confirmedDate ?? "", planned_delivery_date = plannedDate ?? "", transport_terms = transportTerms ?? "", agent = agent ?? "" };
     }
@@ -1054,7 +1054,7 @@ public static class ComposedOperations
                     agg[pid] = (cur.qty + qtyToInvoice, cur.lineTotal + lineTotal, cur.vat + vat, cur.vatId);
                 else
                     agg[pid] = (qtyToInvoice, lineTotal, vat, vatId);
-                recMan.UpdateRecord("sales_order_line", new EntityRecord { ["id"] = Guid.Parse(ol["id"].ToString()), ["qty_invoiced"] = Round(Dec(ol["qty_invoiced"]) + qtyToInvoice) });
+                MustUpdate(recMan,"sales_order_line", new EntityRecord { ["id"] = Guid.Parse(ol["id"].ToString()), ["qty_invoiced"] = Round(Dec(ol["qty_invoiced"]) + qtyToInvoice) });
             }
         }
 
@@ -1073,7 +1073,7 @@ public static class ComposedOperations
         var firstOrder = orders[0];
         if (Has(firstOrder, "payment_term_id") && firstOrder["payment_term_id"] != null)
             inv["payment_term_id"] = Guid.Parse(firstOrder["payment_term_id"].ToString());
-        var ir = recMan.CreateRecord("invoice", inv);
+        var ir = MustCreate(recMan,"invoice", inv);
         if (!ir.Success) throw new InvalidOperationException(Err(ir, "create consolidated invoice"));
         var invoiceId = Id(ir);
 
@@ -1083,7 +1083,7 @@ public static class ComposedOperations
         {
             var v = kv.Value;
             var unitPrice = v.qty != 0m ? Round(v.lineTotal / v.qty) : 0m;
-            recMan.CreateRecord("invoice_line", new EntityRecord
+            MustCreate(recMan,"invoice_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["invoice_id"] = invoiceId,
@@ -1099,9 +1099,9 @@ public static class ComposedOperations
             invLines.Add(new { product_id = kv.Key, quantity = Round(v.qty), line_total = Round(v.lineTotal), vat_amount = Round(v.vat) });
         }
 
-        recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = invoiceId, ["amount"] = Round(amount), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(amount + vatTotal) });
+        MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = invoiceId, ["amount"] = Round(amount), ["vat_total"] = Round(vatTotal), ["grand_total"] = Round(amount + vatTotal) });
         foreach (var o in orders)
-            recMan.UpdateRecord("sales_order", new EntityRecord { ["id"] = Guid.Parse(o["id"].ToString()), ["status"] = "invoiced" });
+            MustUpdate(recMan,"sales_order", new EntityRecord { ["id"] = Guid.Parse(o["id"].ToString()), ["status"] = "invoiced" });
 
         return new { invoice_id = invoiceId, invoice_number = inv["invoice_number"], order_count = orders.Count, grand_total = Round(amount + vatTotal) };
     }
@@ -1118,7 +1118,7 @@ public static class ComposedOperations
         count["warehouse_id"] = wh.id;
         count["count_date"] = DateTime.Today;
         count["status"] = "applied";
-        var cr = recMan.CreateRecord("cycle_count", count);
+        var cr = MustCreate(recMan,"cycle_count", count);
         if (!cr.Success) throw new InvalidOperationException(Err(cr, "create cycle count"));
         var countId = Id(cr);
 
@@ -1132,7 +1132,7 @@ public static class ComposedOperations
             var expected = StockQty(productId, wh.id);
             var variance = Round(counted - expected);
 
-            recMan.CreateRecord("cycle_count_line", new EntityRecord
+            MustCreate(recMan,"cycle_count_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["cycle_count_id"] = countId,
@@ -1163,7 +1163,7 @@ public static class ComposedOperations
         ret["original_delivery_id"] = deliveryId;
         ret["return_date"] = DateTime.Today;
         ret["status"] = "processed";
-        var rr = recMan.CreateRecord("sales_return", ret);
+        var rr = MustCreate(recMan,"sales_return", ret);
         if (!rr.Success) throw new InvalidOperationException(Err(rr, "create sales return"));
         var returnId = Id(rr);
 
@@ -1177,7 +1177,7 @@ public static class ComposedOperations
             var qty = l.Value<decimal?>("quantity") ?? 0m;
             var disposition = string.IsNullOrWhiteSpace(l.Value<string>("disposition")) ? "restock" : l.Value<string>("disposition");
 
-            recMan.CreateRecord("sales_return_line", new EntityRecord
+            MustCreate(recMan,"sales_return_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["sales_return_id"] = returnId,
@@ -1238,7 +1238,7 @@ public static class ComposedOperations
     // Append a document_audit row for a post/storno/cancel action.
     private static void Audit(RecordManager recMan, string entityName, Guid recordId, string action, string note)
     {
-        recMan.CreateRecord("document_audit", new EntityRecord
+        MustCreate(recMan,"document_audit", new EntityRecord
         {
             ["id"] = Guid.NewGuid(),
             ["entity_name"] = entityName,
@@ -1383,20 +1383,20 @@ public static class ComposedOperations
         inv["storno_of"] = Guid.Empty;
         if (Has(customer, "payment_term_id") && customer["payment_term_id"] != null)
             inv["payment_term_id"] = Guid.Parse(customer["payment_term_id"].ToString());
-        var ir = recMan.CreateRecord("invoice", inv);
+        var ir = MustCreate(recMan,"invoice", inv);
         if (!ir.Success) throw new InvalidOperationException(Err(ir, "create sales invoice"));
         var invoiceId = Id(ir);
 
         foreach (var pl in productLines)
         {
             pl["invoice_id"] = invoiceId;
-            var lr = recMan.CreateRecord("invoice_line", pl);
+            var lr = MustCreate(recMan,"invoice_line", pl);
             if (!lr.Success) throw new InvalidOperationException(Err(lr, "create invoice product line"));
         }
         foreach (var ar in accRecords)
         {
             ar["invoice_id"] = invoiceId;
-            var arRes = recMan.CreateRecord("invoice_line", ar);
+            var arRes = MustCreate(recMan,"invoice_line", ar);
             if (!arRes.Success) throw new InvalidOperationException(Err(arRes, "create invoice accessory line"));
         }
 
@@ -1404,7 +1404,7 @@ public static class ComposedOperations
         int seq = 1;
         foreach (var s in sched)
         {
-            recMan.CreateRecord("invoice_installment", new EntityRecord
+            MustCreate(recMan,"invoice_installment", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["invoice_id"] = invoiceId,
@@ -1453,7 +1453,7 @@ public static class ComposedOperations
         bill["due_date"] = DateTime.Today.AddDays(30);
         bill["status"] = "registered";
         bill["triple_match_status"] = "pending";
-        var br = recMan.CreateRecord("purchase_invoice", bill);
+        var br = MustCreate(recMan,"purchase_invoice", bill);
         if (!br.Success) throw new InvalidOperationException(Err(br, "create purchase invoice"));
         var billId = Id(br);
 
@@ -1467,7 +1467,7 @@ public static class ComposedOperations
             var lineTotal = Round(qty * cost);
             var vat = Round(lineTotal * VatRate(vatId) / 100m);
             subtotal += lineTotal; vatTotal += vat;
-            recMan.CreateRecord("purchase_invoice_line", new EntityRecord
+            MustCreate(recMan,"purchase_invoice_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["bill_id"] = billId,
@@ -1485,7 +1485,7 @@ public static class ComposedOperations
         decimal stamp = Round(stampTax);
         decimal grandTotal = Round(afterDoc + vatTotal + stamp);
 
-        recMan.UpdateRecord("purchase_invoice", new EntityRecord
+        MustUpdate(recMan,"purchase_invoice", new EntityRecord
         {
             ["id"] = billId,
             ["amount"] = Round(FromEur(afterDoc, cur)),
@@ -1513,7 +1513,7 @@ public static class ComposedOperations
         dn["vat_total"] = 0m;
         dn["reason"] = reason ?? "";
         dn["status"] = "issued";
-        var r = recMan.CreateRecord("debit_note", dn);
+        var r = MustCreate(recMan,"debit_note", dn);
         if (!r.Success) throw new InvalidOperationException(Err(r, "create debit note"));
         return new { debit_note_id = Id(r), debit_note_number = dn["debit_note_number"], amount = Round(amount) };
     }
@@ -1526,7 +1526,7 @@ public static class ComposedOperations
         if (inv["invoice_type"]?.ToString() != "proforma")
             throw new InvalidOperationException("The invoice is not a proforma.");
         var recMan = new RecordManager();
-        var u = recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = id, ["invoice_type"] = "immediate", ["status"] = "sent" });
+        var u = MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = id, ["invoice_type"] = "immediate", ["status"] = "sent" });
         if (!u.Success) throw new InvalidOperationException(Err(u, "convert proforma to invoice"));
         return new { invoice_id = id, invoice_number = inv["invoice_number"], invoice_type = "immediate" };
     }
@@ -1539,7 +1539,7 @@ public static class ComposedOperations
         if (Has(inv, "posted") && inv["posted"] is bool p && p)
             throw new InvalidOperationException("Invoice already posted.");
         var recMan = new RecordManager();
-        var u = recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = id, ["posted"] = true, ["posted_date"] = DateTime.Today });
+        var u = MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = id, ["posted"] = true, ["posted_date"] = DateTime.Today });
         if (!u.Success) throw new InvalidOperationException(Err(u, "post invoice"));
         Audit(recMan, "invoice", id, "post", null);
         return new { invoice_id = id, posted = true };
@@ -1576,14 +1576,14 @@ public static class ComposedOperations
         rev["storned"] = false;
         rev["storno_of"] = id;
         rev["notes"] = $"storno of {orig["invoice_number"]}";
-        var rr = recMan.CreateRecord("invoice", rev);
+        var rr = MustCreate(recMan,"invoice", rev);
         if (!rr.Success) throw new InvalidOperationException(Err(rr, "create storno invoice"));
         var revId = Id(rr);
 
         foreach (var ol in Query("SELECT * FROM invoice_line WHERE invoice_id = @id", id))
         {
             var vid = GuidOrEmpty(ol, "vat_code_id");
-            recMan.CreateRecord("invoice_line", new EntityRecord
+            MustCreate(recMan,"invoice_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["invoice_id"] = revId,
@@ -1598,7 +1598,7 @@ public static class ComposedOperations
             });
         }
 
-        recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = id, ["storned"] = true });
+        MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = id, ["storned"] = true });
         Audit(recMan, "invoice", id, "storno", $"reversed by {rev["invoice_number"]}");
         return new { storno_invoice_id = revId, original_invoice_id = id };
     }
@@ -1630,14 +1630,14 @@ public static class ComposedOperations
         dup["posted"] = false;
         dup["storned"] = false;
         dup["storno_of"] = Guid.Empty;
-        var dr = recMan.CreateRecord("invoice", dup);
+        var dr = MustCreate(recMan,"invoice", dup);
         if (!dr.Success) throw new InvalidOperationException(Err(dr, "duplicate invoice"));
         var dupId = Id(dr);
 
         foreach (var ol in Query("SELECT * FROM invoice_line WHERE invoice_id = @id", id))
         {
             var vid = GuidOrEmpty(ol, "vat_code_id");
-            recMan.CreateRecord("invoice_line", new EntityRecord
+            MustCreate(recMan,"invoice_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["invoice_id"] = dupId,
@@ -1662,7 +1662,7 @@ public static class ComposedOperations
         if (Has(inv, "posted") && inv["posted"] is bool p && p)
             throw new InvalidOperationException("Invoice is posted; use storno instead of cancel.");
         var recMan = new RecordManager();
-        var u = recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = id, ["status"] = "cancelled" });
+        var u = MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = id, ["status"] = "cancelled" });
         if (!u.Success) throw new InvalidOperationException(Err(u, "cancel invoice"));
         Audit(recMan, "invoice", id, "cancel", null);
         return new { invoice_id = id, status = "cancelled" };
@@ -1706,7 +1706,7 @@ public static class ComposedOperations
             var take = Math.Min(remaining, Math.Max(bal, 0m));
             if (take > 0.0001m)
             {
-                recMan.CreateRecord("payment", new EntityRecord
+                MustCreate(recMan,"payment", new EntityRecord
                 {
                     ["id"] = Guid.NewGuid(),
                     ["payment_ref"] = NextNumber("PAY"),
@@ -1729,7 +1729,7 @@ public static class ComposedOperations
             allowRemaining -= ab; allowApplied += ab;
             var newBal = Round(balAfterCash - ab);
             var status = newBal <= 0.005m ? "paid" : (r.cash > 0.0001m ? "partial" : "sent");
-            recMan.UpdateRecord("invoice", new EntityRecord { ["id"] = r.id, ["status"] = status });
+            MustUpdate(recMan,"invoice", new EntityRecord { ["id"] = r.id, ["status"] = status });
             outInvoices.Add(new { invoice_id = r.id, paid = r.cash, balance = newBal, status });
         }
         return new { collected = Round(collected), allowance = Round(allowApplied), invoices = outInvoices };
@@ -1787,7 +1787,7 @@ public static class ComposedOperations
             ["quantity"] = Round(quantity),
             ["reserved_on"] = DateTime.UtcNow
         };
-        var r = recMan.CreateRecord("reservation", rec);
+        var r = MustCreate(recMan,"reservation", rec);
         if (!r.Success) throw new InvalidOperationException(Err(r, "reserve stock"));
         return new { sku, warehouse = wh.code, reserved = Round(quantity) };
     }
@@ -1813,7 +1813,7 @@ public static class ComposedOperations
             }
             else
             {
-                recMan.UpdateRecord("reservation", new EntityRecord { ["id"] = rid, ["quantity"] = Round(q - toRelease) });
+                MustUpdate(recMan,"reservation", new EntityRecord { ["id"] = rid, ["quantity"] = Round(q - toRelease) });
                 released += toRelease; toRelease = 0m;
             }
         }
@@ -1837,7 +1837,7 @@ public static class ComposedOperations
             ["return_date"] = DateTime.Today,
             ["status"] = "processed"
         };
-        var rr = recMan.CreateRecord("supplier_return", ret);
+        var rr = MustCreate(recMan,"supplier_return", ret);
         if (!rr.Success) throw new InvalidOperationException(Err(rr, "create supplier return"));
         var returnId = Id(rr);
 
@@ -1848,7 +1848,7 @@ public static class ComposedOperations
             var product = FindProductBySku(sku) ?? throw UnknownSku(l);
             var pid = Guid.Parse(product["id"].ToString());
             var qty = l.Value<decimal?>("quantity") ?? 0m;
-            recMan.CreateRecord("supplier_return_line", new EntityRecord
+            MustCreate(recMan,"supplier_return_line", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["supplier_return_id"] = returnId,
@@ -2049,8 +2049,36 @@ public static class ComposedOperations
     //  STOCK LEDGER
     // ══════════════════════════════════════════════
 
+    // Serialize stock changes for one product across concurrent requests. AdjustStock
+    // is a read-modify-write on stock_item and product.stock_quantity, so two agents
+    // touching the same product at once could otherwise lose an update or drive stock
+    // negative past its guard. The lock is a PostgreSQL transaction-scoped advisory
+    // lock: it is taken on the request's shared transaction (opened by the Composed()
+    // wrapper) and is released automatically when that transaction commits or rolls
+    // back. pg_try_advisory_xact_lock is non-blocking, so we retry briefly; if the
+    // lock is never freed we fail with a retryable message rather than corrupt stock.
+    private static void LockProductStock(Guid productId)
+    {
+        var ctx = ErpCore.Database.DbContext.Current;
+        if (ctx == null)
+            return;
+
+        string key = "stock:" + productId.ToString("N");
+        for (int attempt = 0; attempt < 200; attempt++)
+        {
+            bool acquired;
+            using (var con = ctx.CreateConnection())
+                acquired = con.AcquireAdvisoryLock(key);
+            if (acquired)
+                return;
+            System.Threading.Thread.Sleep(25);
+        }
+        throw new Exception("Stock for this product is busy, please retry.");
+    }
+
     private static void AdjustStock(RecordManager recMan, Guid productId, Guid warehouseId, decimal delta, string movementType, string refType, Guid refId, decimal unitCost, string lot, DateTime? expiry, bool allowNegative)
     {
+        LockProductStock(productId);
         var item = Query("SELECT * FROM stock_item WHERE product_id = @id AND warehouse_id = @w", productId, ("w", warehouseId)).FirstOrDefault();
         decimal current = item != null ? Dec(item["quantity"]) : 0m;
         decimal newQty = Round(current + delta);
@@ -2059,7 +2087,7 @@ public static class ComposedOperations
 
         if (item == null)
         {
-            recMan.CreateRecord("stock_item", new EntityRecord
+            MustCreate(recMan,"stock_item", new EntityRecord
             {
                 ["id"] = Guid.NewGuid(),
                 ["stock_key"] = $"{productId:N}|{warehouseId:N}",
@@ -2075,10 +2103,10 @@ public static class ComposedOperations
             var avg = Dec(item["avg_cost"]);
             if (delta > 0m && newQty > 0m)
                 avg = Round((avg * current + unitCost * delta) / newQty);
-            recMan.UpdateRecord("stock_item", new EntityRecord { ["id"] = Guid.Parse(item["id"].ToString()), ["quantity"] = newQty, ["avg_cost"] = avg });
+            MustUpdate(recMan,"stock_item", new EntityRecord { ["id"] = Guid.Parse(item["id"].ToString()), ["quantity"] = newQty, ["avg_cost"] = avg });
         }
 
-        recMan.CreateRecord("stock_movement", new EntityRecord
+        MustCreate(recMan,"stock_movement", new EntityRecord
         {
             ["id"] = Guid.NewGuid(),
             ["product_id"] = productId,
@@ -2096,7 +2124,7 @@ public static class ComposedOperations
         // Keep the denormalized product total in sync.
         var prod = FindById("product", productId);
         if (prod != null)
-            recMan.UpdateRecord("product", new EntityRecord { ["id"] = productId, ["stock_quantity"] = Round(Dec(prod["stock_quantity"]) + delta) });
+            MustUpdate(recMan,"product", new EntityRecord { ["id"] = productId, ["stock_quantity"] = Round(Dec(prod["stock_quantity"]) + delta) });
     }
 
     private static decimal StockQty(Guid productId, Guid warehouseId)
@@ -2298,6 +2326,26 @@ public static class ComposedOperations
         if (daysLate <= 60) return 2;
         if (daysLate <= 90) return 3;
         return 4;
+    }
+
+    // Guards every write in a composed operation. RecordManager returns a QueryResponse
+    // instead of throwing on validation or security failures, so an unchecked call can
+    // silently skip a write and leave a document half-updated (e.g. a header with wrong
+    // totals). These wrappers throw on failure so the surrounding Composed() transaction
+    // rolls the whole operation back. They return the response so callers that need the
+    // new id can keep using it.
+    private static QueryResponse MustCreate(RecordManager recMan, string entityName, EntityRecord record)
+    {
+        var r = recMan.CreateRecord(entityName, record);
+        if (!r.Success) throw new InvalidOperationException(Err(r, "create " + entityName));
+        return r;
+    }
+
+    private static QueryResponse MustUpdate(RecordManager recMan, string entityName, EntityRecord record)
+    {
+        var r = recMan.UpdateRecord(entityName, record);
+        if (!r.Success) throw new InvalidOperationException(Err(r, "update " + entityName));
+        return r;
     }
 
     private static string Err(QueryResponse r, string what)
