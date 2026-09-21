@@ -3,6 +3,9 @@
 <html lang="@ErpSettings.Lang">
 <head>
 	<base href="~/" />
+	<link rel="manifest" href="/manifest.webmanifest" />
+	<meta name="theme-color" content="#0d6efd" />
+	<link rel="apple-touch-icon" href="/assets/pwa-192x192.png" />
 	<vc:render-hook placeholder="head-top" page-model="@Model"  model="null"></vc:render-hook>
 	<wv-includes></wv-includes>
 	<vc:render-hook placeholder="head-bottom" page-model="@Model"  model="null"></vc:render-hook>
@@ -12,5 +15,12 @@
 	<vc:render-hook placeholder="body-top" page-model="@Model"  model="null"></vc:render-hook>
 	<vc:render-hook placeholder="body-bottom" page-model="@Model"  model="null"></vc:render-hook>
 	<vc:screen-message></vc:screen-message>
+	<script>
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', function () {
+				navigator.serviceWorker.register('/service-worker.js').catch(function () {});
+			});
+		}
+	</script>
 </body>
 </html>

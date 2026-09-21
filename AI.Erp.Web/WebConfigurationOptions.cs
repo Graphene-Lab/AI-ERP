@@ -19,6 +19,10 @@ namespace AI.Erp.Web
 		public void PostConfigure(string name, StaticFileOptions options)
 		{
 			options.ContentTypeProvider = options.ContentTypeProvider ?? new FileExtensionContentTypeProvider();
+			if (options.ContentTypeProvider is FileExtensionContentTypeProvider fectp)
+			{
+				fectp.Mappings[".webmanifest"] = "application/manifest+json";
+			}
 
 			if (options.FileProvider == null && env.WebRootFileProvider == null)
 				throw new InvalidOperationException("Missing FileProvider.");
