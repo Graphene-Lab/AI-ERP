@@ -61,3 +61,10 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# Shell scripts must be LF: CRLF breaks bash/sh on Linux and macOS
+# (syntax error near unexpected token `$'{\r'). Keep the working tree LF too so
+# release uploads from a Windows checkout are not CRLF.
+###############################################################################
+*.sh text eol=lf
