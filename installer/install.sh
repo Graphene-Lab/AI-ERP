@@ -350,9 +350,9 @@ start_services_linux() {
 	fi
 	log "ERP started (pid $(cat "$INSTALL_ROOT/erp.pid")). Waiting for first-run setup..."
 	wait_for_erp
-	if [ -x "$AB_DIR/AgentBridge" ] || [ -f "$AB_DIR/AgentBridge.dll" ]; then
-		local abexe="$AB_DIR/AgentBridge"
-		[ -x "$abexe" ] || abexe="dotnet $AB_DIR/AgentBridge.dll"
+	if [ -x "$AB_DIR/agent" ] || [ -f "$AB_DIR/agent.dll" ]; then
+		local abexe="$AB_DIR/agent"
+		[ -x "$abexe" ] || abexe="dotnet $AB_DIR/agent.dll"
 		( cd "$AB_DIR" && ERP_BASE_URL="$ERP_URL" ERP_USER="$ERP_ADMIN_EMAIL" ERP_PASSWORD="$ERP_ADMIN_PASSWORD" \
 			setsid $abexe >"$LOG_DIR/agentbridge.log" 2>&1 & echo $! > "$INSTALL_ROOT/ab.pid" )
 		log "AgentBridge started (pid $(cat "$INSTALL_ROOT/ab.pid" 2>/dev/null || echo '?'))."
