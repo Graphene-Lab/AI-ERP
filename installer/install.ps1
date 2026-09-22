@@ -240,9 +240,10 @@ $providerObj = @([ordered]@{
     ModelName = $Model; ApiKey = $KeyPlain; BaseAddress = $base; EndPoint = $Endpoint
     Timeout = '00:01:00'; PauseBetweenRequests = '00:00:00'; ContextWindow = 128000
 })
-$providerObj | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $pd 'providers.json') -Encoding UTF8
-@{ baseUrl = $ErpUrl; user = $ErpAdminEmail; password = $ErpAdminPass } |
-    ConvertTo-Json -Depth 4 | Set-Content (Join-Path $pd 'erp.json') -Encoding UTF8
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText((Join-Path $pd 'providers.json'), ($providerObj | ConvertTo-Json -Depth 6), $utf8NoBom)
+[System.IO.File]::WriteAllText((Join-Path $pd 'erp.json'),
+    (@{ baseUrl = $ErpUrl; user = $ErpAdminEmail; password = $ErpAdminPass } | ConvertTo-Json -Depth 4), $utf8NoBom)
 
 # Place the ErpTool plugin where the host scans: <AbDir>\Tools\ErpTool\
 $toolSrc = Join-Path $InstallRoot 'erptool'
@@ -269,7 +270,7 @@ for ($i=0; $i -lt 60; $i++) {
 }
 if ($up) { Log 'ERP is up.' } else { Warn 'ERP did not respond within 120s; check logs.' }
 
-$abExe = Join-Path $AbDir 'AgentBridge.exe'
+$abExe = Join-Path $AbDir 'agent.exe'
 if (Test-Path $abExe) {
     $env:ERP_BASE_URL = $ErpUrl; $env:ERP_USER = $ErpAdminEmail; $env:ERP_PASSWORD = $ErpAdminPass
     Start-Process -FilePath $abExe -WorkingDirectory $AbDir `
