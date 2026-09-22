@@ -43,7 +43,7 @@ AB_DIR="$INSTALL_ROOT/agentbridge"
 LOG_DIR="$INSTALL_ROOT/logs"
 
 # Release tags. Pinned for reproducibility; override with env vars.
-ERP_TAG="${ERP_TAG:-v1.26.09.21}"
+ERP_TAG="${ERP_TAG:-v1.26.09.22}"
 AB_TAG="${AB_TAG:-v1.26.09.19}"
 TOOL_TAG="${TOOL_TAG:-v1.26.09.11}"
 
