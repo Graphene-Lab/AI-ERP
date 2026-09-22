@@ -141,7 +141,8 @@ run_wizard() {
 	echo "Pick one: openai, anthropic, google, mistral, cohere, meta, xai,"
 	echo "          deepseek, perplexity, together, zai, ollama, custom"
 	ask PROVIDER       "Provider"                  "deepseek"
-	PROVIDER="${PROVIDER,,}"
+	# bash 3.2 (macOS default) has no ${var,,}; use tr for portability.
+	PROVIDER="$(printf '%s' "$PROVIDER" | tr '[:upper:]' '[:lower:]')"
 	if [ "$PROVIDER" = "custom" ]; then
 		ask P_PROTOCOL "Protocol (OpenAI / Gemini / Anthropic)" "OpenAI"
 		ask P_BASE     "API base URL (ends with /)"
@@ -236,6 +237,15 @@ write_erp_config() {
 	log "Writing ERP config.json ..."
 	local conn="Server=localhost;Port=5432;User Id=${DB_USER};Password=${DB_PASSWORD};Database=${DB_NAME};Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
 	local jwtkey enckey; jwtkey="$(gen_key)"; enckey="$(gen_key)"
+	# Use jq so values with quotes/backslashes (company name, password) are escaped.
+	if need_cmd jq; then
+		jq -n --arg conn "$conn" --arg enc "$enckey" --arg tz "$TIMEZONE" \
+		      --arg app "$COMPANY_NAME" --arg jwt "$jwtkey" \
+		'{Settings:{ConnectionString:$conn,EncryptionKey:$enc,Lang:"en",Locale:"en-US",TimeZoneName:$tz,CacheKey:"",DevelopmentMode:"false",EnableBackgroundJobs:"true",EnableFileSystemStorage:"false",EmailEnabled:false,AppName:$app,NavLogoUrl:"",SystemMasterBackgroundImageUrl:"",Jwt:{Key:$jwt,Issuer:"ai-erp",Audience:"ai-erp"}}}' \
+			> "$ERP_DIR/config.json"
+		return 0
+	fi
+	warn "jq not found; writing config.json raw (company name/password must contain no quotes or backslashes)."
 	cat > "$ERP_DIR/config.json" <<EOF
 {
   "Settings": {

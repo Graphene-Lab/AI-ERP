@@ -133,18 +133,24 @@ if ($env:SKIP_PG_INSTALL -ne '1') {
         Log 'Downloading PostgreSQL 16 (EDB installer)...'
         $edbUrl = 'https://get.enterprisedb.com/postgresql/postgresql-16.15-4-windows-x64.exe'
         $edbExe = Join-Path $env:TEMP 'postgresql-16.15-4-windows-x64.exe'
+        $downloaded = $false
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri $edbUrl -OutFile $edbExe -UseBasicParsing
+            $downloaded = $true
         } catch {
             if (Get-Command winget -ErrorAction SilentlyContinue) {
                 Log 'Direct download failed; trying winget...'
-                winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements --override "--mode unattended --unattendedmodeui none --superpassword $DbPassword"
+                # Pass --serverport too: the EDB installer defaults to 5433, but the
+                # ERP and the psql calls below use $DbPort.
+                winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements --override "--mode unattended --unattendedmodeui none --superpassword $DbPassword --serverport $DbPort"
             } else { throw "Could not download PostgreSQL: $($_.Exception.Message). Install it manually or set SKIP_PG_INSTALL=1." }
         }
-        if (Test-Path $edbExe) {
+        # Only run the EDB installer when the download actually succeeded; a failed
+        # Invoke-WebRequest can leave a partial $edbExe that must not be executed.
+        if ($downloaded) {
             Log 'Running EDB installer (unattended)...'
-            # Valid EDB InstallBuilder options only. Default port is 5433, so set 5432
+            # Valid EDB InstallBuilder options only. Default port is 5433, so set $DbPort
             # to match the ERP. Keep server + commandlinetools (psql); skip pgAdmin/stackbuilder.
             $p = Start-Process -FilePath $edbExe -Verb RunAs -ArgumentList @(
                 '--mode','unattended','--unattendedmodeui','none',
