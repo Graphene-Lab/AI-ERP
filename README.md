@@ -99,8 +99,11 @@ ErpTool  →  HTTPS + JWT  →  AgentApi  →  AI ERP managers  →  your data
 The agent never touches the database directly. It acts as a normal ERP user, so the same
 permissions and checks that protect your data from people also apply to the agent.
 
-**To run the whole system**, you install all three and connect them. The step-by-step guide is
-in the wiki: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki).
+**To run the whole system**, you install all three and connect them. The fastest way is the
+one-shot installer on the [releases page](https://github.com/Graphene-Lab/AI-ERP/releases):
+`install.bat` on Windows, `install.sh` on Linux/macOS. It sets up PostgreSQL, the ERP,
+AgentBridge and the ErpTool plugin in one run. For manual and remote / multi-host setups, see
+the step-by-step guide in the wiki: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki).
 
 ## Documentation
 

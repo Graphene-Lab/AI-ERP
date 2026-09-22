@@ -19,7 +19,8 @@ permissions and checks apply to the agent.
 
 - [Install the ecosystem](Install-the-Ecosystem) — set up the whole agentic system: AI ERP +
   PostgreSQL + the company setup file + AgentBridge + the ErpTool plugin, with example prompts
-  and daily scheduling. The wizard does it in one step.
+  and daily scheduling. A one-shot installer (`.bat` / `.sh`) does it on one machine; the page
+  also covers manual and remote / multi-host setups.
 - [AI Integration](AI-Integration) — how the AI agent drives the ERP (AgentApi, ErpTool, AgentBridge), with a diagram and the security model.
 
 For the full developer reference (entities, pages, tag helpers, EQL, plugins, hooks), see the

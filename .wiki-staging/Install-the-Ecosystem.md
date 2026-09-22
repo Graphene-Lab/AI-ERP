@@ -9,8 +9,9 @@ company inside the ERP. By the end you will have three programs connected:
 
 There are two ways to install:
 
-- **The wizard** (recommended): one script asks a few questions and sets everything up for you.
-- **Manual**: the step-by-step reference below.
+- **The one-shot installer** (recommended): one script per OS sets everything up on a single
+  local machine.
+- **Manual**: the step-by-step reference below, also for remote and multi-host setups.
 
 ---
 
@@ -47,43 +48,54 @@ permissions and checks that protect your data from people also apply to the agen
 
 ---
 
-## Option A — The wizard (recommended)
+## Option A — The one-shot installer (recommended)
 
-The wizard installs AI ERP, PostgreSQL (if you want it installed), AgentBridge and the ErpTool
-plugin, asks a few questions about your company in your own language, and leaves you with a
-working system.
+One script sets up the whole ecosystem on a single local machine: PostgreSQL 16, AI ERP,
+AgentBridge and the ErpTool plugin, your company details, and a desktop launcher. The
+installer is on the
+[releases page](https://github.com/Graphene-Lab/AI-ERP/releases). Download the script for
+your OS and run it — you do not need the `.tar.gz` archives by hand, the installer downloads
+them for you.
 
-Run it from the AI ERP repository:
+**Windows** — download `install.bat` and run it (double-click it, or run it from a terminal).
+It runs `install.ps1` sitting next to it.
+
+**Linux** — download `install.sh` and run:
 
 ```bash
-# Linux / macOS
-bash tools/setup-wizard.sh
+bash install.sh
 ```
 
-```powershell
-# Windows (PowerShell)
-.\tools\setup-wizard.ps1
-```
+**macOS** — download `install.sh` and run `bash install.sh`. It sets up PostgreSQL through
+Docker. A native macOS build of the ERP is not published yet, so run the ERP app on Linux or
+Docker pointed at that database.
 
-The wizard asks, in the language of your machine (English, Italian, French, Spanish, German,
-Russian):
+The installer asks for:
 
-1. The company name, legal name, VAT number, address, city, country.
-2. The default currency (for example EUR).
-3. The PostgreSQL connection (host, port, user, password, database).
-4. The ERP account the agent will use (email and password).
-5. The AgentBridge download location.
+1. The company name, legal name, VAT number, address, city, country, email, phone.
+2. The default currency (for example EUR) and the timezone.
+3. The AI provider and its API key (OpenAI, Anthropic, Gemini, DeepSeek, Mistral, a local
+   Ollama model, and others).
 
 It then:
 
-- writes your answers into `bootstrap.json` (the company setup file);
-- creates the database and starts the ERP, which builds the schema and the seed data;
-- downloads and installs AgentBridge;
-- installs the ErpTool plugin into AgentBridge's `Tools/ErpTool/` folder;
-- writes the ERP connection so the tool can reach the ERP;
-- checks that everything is reachable and prints how to start.
+- installs PostgreSQL 16 if it is not already present, and creates the database and role;
+- downloads AI ERP, AgentBridge and the ErpTool plugin from the releases;
+- writes `config.json` (connection string, JWT key, encryption key) and the company seed in
+  `bootstrap.json`;
+- configures AgentBridge with your provider and installs the ErpTool plugin under
+  `Tools/ErpTool/`;
+- starts the ERP and AgentBridge, and installs a desktop / Start Menu launcher (a PWA app
+  window).
 
-When it finishes, open AgentBridge and start talking to the agent.
+Everything lands under one install root — `%LOCALAPPDATA%\aierp` on Windows, `~/.aierp` on
+Linux/macOS — with logs under `<install root>/logs`. The default admin is
+`erp@webvella.com` / `erp`; change it right after the first login.
+
+When it finishes, open the ERP launcher and start talking to the agent.
+
+> The installer targets a single local machine. If you need the ERP and the database on
+> different hosts, or a managed cloud database, use the manual install below.
 
 ---
 
@@ -195,6 +207,60 @@ In AgentBridge, ask the agent:
 > "List the ERP entities."
 
 The agent calls `get_schema` and shows the tables. If it answers, the whole chain works.
+
+---
+
+## Remote and multi-host (enterprise) setups
+
+The one-shot installer puts everything on one machine. In a company you often want the parts
+on different hosts. The manual install supports this directly — the ERP talks to PostgreSQL and
+AgentBridge talks to the ERP only over the network, so each piece can live wherever you like.
+
+**ERP and PostgreSQL on different hosts.** Point the connection string at the database host
+instead of `localhost`:
+
+```
+Server=db.internal;Port=5432;User Id=aierp;Password=<strong>;Database=aierp;Pooling=true;
+```
+
+- Open the PostgreSQL port between the two hosts (firewall / security group) and restrict it to
+  the ERP host's address.
+- Use a strong password. For traffic that leaves a trusted network, enable TLS in PostgreSQL
+  (`sslmode=require` in the connection string).
+- The ERP creates its own schema, types and casts on first run, so the role needs to own the
+  database or have rights to create types and casts (a superuser role is simplest).
+
+**ERP behind a reverse proxy / public URL.** Bind the ERP to all interfaces and put a proxy in
+front with HTTPS:
+
+```bash
+dotnet AI.Erp.Site.dll --urls http://0.0.0.0:5080
+```
+
+Put nginx, Caddy, or IIS in front, terminate TLS there, and forward to `127.0.0.1:5080` (or
+the ERP host). The ERP uses the request host, so links and the PWA follow the public URL. Keep
+the ERP port closed to the public internet; only the proxy should be reachable.
+
+**AgentBridge on a separate host.** Tell the ErpTool plugin where the ERP lives with
+`ERP_BASE_URL` (or `PersistentData/erp.json`), set to the ERP's reachable URL, for example
+`https://erp.example.com`. The agent then drives that ERP over HTTPS + JWT, exactly as if it
+were local.
+
+**Managed cloud PostgreSQL (RDS, Azure Database, Supabase, Neon, ...).** Use the connection
+string the provider gives you. The ERP builds its own schema on first run. Confirm the role can
+create types and casts; some managed services restrict superuser, so grant the database owner
+role or the specific `CREATE`/`CREATE TYPE`/`CREATE CAST` rights.
+
+**Running as a service.** For anything beyond a single desktop, run the ERP and AgentBridge as
+managed services so they restart on boot and survive crashes:
+
+- Linux: a `systemd` unit per process (`AI.Erp.Site`, `agent`), with the connection string and
+  keys supplied through the unit's environment or a protected config file.
+- Windows: a Task Scheduler task or a service wrapper for `AI.Erp.Site.exe` and `agent.exe`.
+
+**Hardening before a real deployment.** Change the default admin password, the JWT key, and the
+encryption key in `config.json`. Keep credentials out of source control — use environment
+variables or files that are not part of the program archive.
 
 ---
 

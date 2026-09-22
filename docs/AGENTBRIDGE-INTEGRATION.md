@@ -51,10 +51,11 @@ The full method list is in the [ErpTool repository](https://github.com/Graphene-
 
 ## Setup
 
-> The whole setup can be automated with the **setup wizard** (`tools/setup-wizard.sh` on
-> Linux/macOS, `tools/setup-wizard.ps1` on Windows). It asks for your company and connection
-> details in your machine's language and wires everything up. The steps below are the manual
-> reference. Full guide: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki/Install-the-Ecosystem).
+> The whole setup can be automated with the **one-shot installer** from the
+> [releases page](https://github.com/Graphene-Lab/AI-ERP/releases): `install.bat` on Windows,
+> `install.sh` on Linux/macOS. It asks for your company and AI-provider details and wires
+> everything up on one machine. The steps below are the manual reference, also for remote and
+> multi-host setups. Full guide: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki/Install-the-Ecosystem).
 
 1. **Run the ERP.** Start AI-ERP and let it finish its first-run setup (see
    [First-run setup](FIRST-RUN-SETUP.md)). Note the URL, for example `http://127.0.0.1:5080`.
