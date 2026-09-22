@@ -18,6 +18,7 @@ $ErpUrl  = "http://127.0.0.1:$ErpPort"
 
 $DbName = if ($env:DB_NAME) { $env:DB_NAME } else { 'aierp' }
 $DbUser = if ($env:DB_USER) { $env:DB_USER } else { 'aierp' }
+$DbPort = if ($env:DB_PORT) { [int]$env:DB_PORT } else { 5432 }
 
 # ERP auto-creates this default admin on first run; the agent logs in with it.
 $ErpAdminEmail = 'erp@webvella.com'
@@ -30,8 +31,14 @@ $LogDir = Join-Path $InstallRoot 'logs'
 
 function Log($m)  { Write-Host "==> $m" -ForegroundColor Cyan }
 function Warn($m) { Write-Host "[!] $m" -ForegroundColor Yellow }
+function Read-Line($prompt) {
+    Write-Host "$prompt " -NoNewline
+    if ([Console]::IsInputRedirected) { return [Console]::In.ReadLine() }
+    return Read-Host
+}
 function Ask($label, $default='') {
-    if ($default) { $v = Read-Host "$label [$default]" } else { $v = Read-Host "$label" }
+    $p = if ($default) { "$label [$default]:" } else { "${label}:" }
+    $v = Read-Line $p
     if ([string]::IsNullOrWhiteSpace($v)) { return $default } else { return $v }
 }
 function New-RandomHex($bytes) {
@@ -99,7 +106,7 @@ if ($Provider -eq 'custom') {
     $Protocol = $spec.Protocol; $Base = $spec.Base; $Endpoint = $spec.Endpoint
     $Model = Ask 'Model' $spec.Model
 }
-$KeyPlain = Read-Host "API key for $Provider"
+$KeyPlain = Read-Line "API key for ${Provider}:"
 if ([string]::IsNullOrWhiteSpace($KeyPlain)) { throw 'An API key is required for the assistant.' }
 
 # --- PostgreSQL -----------------------------------------------------------
@@ -119,12 +126,39 @@ if ($env:SKIP_PG_INSTALL -ne '1') {
     $hasV16 = $false
     if ($psql) { $v = (& $psql --version); if ($v -match '\s16\.') { $hasV16 = $true } }
     if ($hasV16) { Log 'PostgreSQL 16 already installed.' }
-    elseif (Get-Command winget -ErrorAction SilentlyContinue) {
-        Log 'Installing PostgreSQL 16 via winget...'
-        winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements
+    else {
+        # Direct EDB download is the primary method: it works reliably and avoids
+        # winget's downloader being rejected by the EDB CDN (403), which would
+        # otherwise rate-limit the fallback too.
+        Log 'Downloading PostgreSQL 16 (EDB installer)...'
+        $edbUrl = 'https://get.enterprisedb.com/postgresql/postgresql-16.15-4-windows-x64.exe'
+        $edbExe = Join-Path $env:TEMP 'postgresql-16.15-4-windows-x64.exe'
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $edbUrl -OutFile $edbExe -UseBasicParsing
+        } catch {
+            if (Get-Command winget -ErrorAction SilentlyContinue) {
+                Log 'Direct download failed; trying winget...'
+                winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements --override "--mode unattended --unattendedmodeui none --superpassword $DbPassword"
+            } else { throw "Could not download PostgreSQL: $($_.Exception.Message). Install it manually or set SKIP_PG_INSTALL=1." }
+        }
+        if (Test-Path $edbExe) {
+            Log 'Running EDB installer (unattended)...'
+            # Valid EDB InstallBuilder options only. Default port is 5433, so set 5432
+            # to match the ERP. Keep server + commandlinetools (psql); skip pgAdmin/stackbuilder.
+            $p = Start-Process -FilePath $edbExe -Verb RunAs -ArgumentList @(
+                '--mode','unattended','--unattendedmodeui','none',
+                '--superpassword', $DbPassword,
+                '--servicename','postgresql-x64-16',
+                '--serverport', "$DbPort",
+                '--enable-components','server,commandlinetools',
+                '--disable-components','pgAdmin,stackbuilder',
+                '--create_shortcuts','0',
+                '--debugtrace', (Join-Path $env:TEMP 'edb-install-trace.log')
+            ) -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "EDB installer failed with exit code $($p.ExitCode). See %TEMP%\edb-install-trace.log" }
+        }
         $psql = Find-Psql
-    } else {
-        throw 'winget not found. Install PostgreSQL 16 manually, or set SKIP_PG_INSTALL=1.'
     }
 }
 $psql = Find-Psql
@@ -134,16 +168,16 @@ Log "Creating database '$DbName' and user '$DbUser'..."
 $env:PGPASSWORD = $DbPassword
 $psqlDir = Split-Path $psql -Parent
 # Create role/db via the postgres superuser if needed; try as current admin first.
-function Pg-Scalar($sql) { & $psql -U postgres -h localhost -tAc $sql 2>$null }
+function Pg-Scalar($sql) { & $psql -U postgres -h localhost -p $DbPort -tAc $sql 2>$null }
 $roleExists = Pg-Scalar "SELECT 1 FROM pg_roles WHERE rolname='$DbUser'"
 if (-not $roleExists) {
     # The ERP creates casts between the built-in text/uuid types on first run,
     # which requires a superuser role.
-    & $psql -U postgres -h localhost -c "CREATE ROLE $DbUser LOGIN SUPERUSER PASSWORD '$DbPassword';" 2>$null | Out-Null
+    & $psql -U postgres -h localhost -p $DbPort -c "CREATE ROLE $DbUser LOGIN SUPERUSER PASSWORD '$DbPassword';" 2>$null | Out-Null
 }
 $dbExists = Pg-Scalar "SELECT 1 FROM pg_database WHERE datname='$DbName'"
 if (-not $dbExists) {
-    & $psql -U postgres -h localhost -c "CREATE DATABASE $DbName OWNER $DbUser;" 2>$null | Out-Null
+    & $psql -U postgres -h localhost -p $DbPort -c "CREATE DATABASE $DbName OWNER $DbUser;" 2>$null | Out-Null
 }
 Log 'Database ready.'
 
@@ -165,7 +199,7 @@ Get-Extract $ToolRepo $ToolTag "ErpTool-$($ToolTag.TrimStart('v')).zip" (Join-Pa
 
 # --- ERP config -----------------------------------------------------------
 Log 'Writing ERP config.json ...'
-$conn = "Server=localhost;Port=5432;User Id=$DbUser;Password=$DbPassword;Database=$DbName;Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
+$conn = "Server=localhost;Port=$DbPort;User Id=$DbUser;Password=$DbPassword;Database=$DbName;Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
 $erpConfig = [ordered]@{
     Settings = [ordered]@{
         ConnectionString = $conn
@@ -185,12 +219,12 @@ $bf = Join-Path $ErpDir 'bootstrap.json'
 if (Test-Path $bf) {
     $boot = Get-Content $bf -Raw | ConvertFrom-Json
     $addr = "$Street`n$Postal, $City $Country"
-    $company = [ordered]@{
+    $companyRow = [ordered]@{
         name = $Company; legal_name = $Legal; vat_number = $Vat; address = $addr
         city = $City; country = $Country; email = $Email; phone = $Phone
         currency = $Currency; default_warehouse_id = '@warehouse:WH1'
     }
-    $boot.seed.company = @($company)
+    $boot.seed.company = @($companyRow)
     $boot | ConvertTo-Json -Depth 30 | Set-Content $bf -Encoding UTF8
     Log "Company seed set to: $Company"
 } else { Warn 'bootstrap.json not found; skipping company seed.' }
@@ -271,7 +305,7 @@ function Make-Shortcut($path) {
     $sc.Save()
 }
 $desktop = [Environment]::GetFolderPath('Desktop')
-$startMenu = Join-Path ([Environment]::GetFolderPath('ProgramMenu')) 'AI ERP'
+$startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'AI ERP'
 New-Item -ItemType Directory -Force -Path $startMenu | Out-Null
 Make-Shortcut (Join-Path $desktop 'AI ERP.lnk')
 Make-Shortcut (Join-Path $startMenu 'AI ERP.lnk')
