@@ -13,6 +13,41 @@ You only need a running database and one JSON file that describes the company.
 > For manual and remote / multi-host setups, see the full guide:
 > [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki/Install-the-Ecosystem).
 
+## Windows: "SmartScreen / Smart App Control blocked a file that might be unsafe"
+
+When you double-click `install.bat` after downloading it, Windows may show a blue window that
+says the app is not from a trusted publisher, or Smart App Control may stop the file. This is
+normal for any script you download from the internet that is not digitally signed with a paid
+code-signing certificate. It does **not** mean the file contains a virus. Windows shows the same
+warning for many legitimate tools because the publisher is unknown to it and the file was
+downloaded from the web.
+
+The recommended way to continue is to unblock only this file, and keep Windows protection on.
+
+- If you see the blue SmartScreen window, click **More info** (Ulteriori informazioni) and then
+  **Run anyway** (Esegui comunque).
+- Or right-click `install.bat`, choose **Properties**, tick **Unblock** (Sblocca) at the bottom
+  of the General tab, click **Apply**, then run it again.
+
+You do **not** need to turn SmartScreen or Smart App Control off for the whole computer.
+Disabling it lowers the protection of your PC against everything else, so it is better to leave
+it enabled and just allow this one file. If Smart App Control is on and refuses the file even
+after unblocking, note that Smart App Control cannot be turned back on once disabled, so prefer
+the "Run anyway" path or the command below.
+
+If you would rather not save the script to disk at all, run it straight from PowerShell. This
+downloads and runs the installer in one step, so there is no downloaded file for SmartScreen to
+block:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Graphene-Lab/AI-ERP/master/installer/install.ps1 | iex"
+```
+
+The installer is open source and you can read exactly what it does before running it:
+[`installer/install.ps1`](../installer/install.ps1). It only downloads PostgreSQL and the
+official release archives from the project's own GitHub releases and from the EDB site, writes
+its configuration under your local app data folder, and starts the services.
+
 ## Prerequisites
 
 - A PostgreSQL database that is running and reachable from the app.

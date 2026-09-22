@@ -105,6 +105,13 @@ one-shot installer on the [releases page](https://github.com/Graphene-Lab/AI-ERP
 AgentBridge and the ErpTool plugin in one run. For manual and remote / multi-host setups, see
 the step-by-step guide in the wiki: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki).
 
+> On Windows, SmartScreen or Smart App Control may warn that `install.bat` "is not from a
+> trusted publisher". This is normal for any unsigned script downloaded from the web and does
+> not mean the file is unsafe. Click **More info** then **Run anyway**, or right-click the file,
+> choose **Properties** and tick **Unblock**. There is no need to disable Windows protection for
+> the whole PC. See [First-run setup](docs/FIRST-RUN-SETUP.md) for details and a PowerShell
+> command that runs the installer without saving it to disk.
+
 ## Documentation
 
 * [Architecture](ARCHITECTURE.md) — how the whole system is put together.
