@@ -38,3 +38,17 @@ You can read exactly what the installer does before running it in
 [`install.ps1`](install.ps1). It only downloads PostgreSQL and the official release archives
 from this project's GitHub releases and from the EDB site, writes its configuration under your
 local app data folder, and starts the services.
+
+## The desktop icon and "connection refused"
+
+The installer puts an **AI ERP** icon on the Desktop (and in the Start Menu). That icon is a
+small launcher: when you double-click it, it first checks whether the ERP is running and, if it
+is not, starts it (and the assistant) before opening the app window. This matters because the
+ERP is a local web server: if you open the address `http://127.0.0.1:5080` while the server is
+not running, the browser shows "This site can't be reached / ERR_CONNECTION_REFUSED". That is
+not a proxy or firewall problem — the program simply was not running. After a computer restart,
+or if the program was closed, just double-click the **AI ERP** icon and it brings everything
+back up.
+
+The launcher writes its logs under the install folder (`%LOCALAPPDATA%\aierp\logs` on Windows,
+`~/.aierp/logs` on Linux). If the icon ever shows that the ERP cannot start, look there.

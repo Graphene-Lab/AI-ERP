@@ -284,6 +284,82 @@ if (Test-Path $abExe) {
     Log 'AgentBridge started.'
 }
 
+# --- Launcher script ------------------------------------------------------
+# The desktop / Start Menu icon must not just open a browser to a URL: if the ERP
+# is not running (after a reboot, or if it was closed) that URL gives
+# ERR_CONNECTION_REFUSED. The launcher brings the ERP (and AgentBridge) up first,
+# then opens the app window, so the icon works every time it is clicked.
+Log 'Writing the launcher script ...'
+$launcherPs1 = Join-Path $InstallRoot 'aierp-launch.ps1'
+$launcherTemplate = @'
+# AI ERP launcher. Ensures the ERP (and AgentBridge) are running, then opens the app.
+$ErrorActionPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
+
+$InstallRoot = '{{INSTALL_ROOT}}'
+$ErpDir  = Join-Path $InstallRoot 'erp'
+$AbDir   = Join-Path $InstallRoot 'agentbridge'
+$LogDir  = Join-Path $InstallRoot 'logs'
+$ErpPort = {{ERP_PORT}}
+$AbPort  = {{AB_PORT}}
+$ErpUrl  = "http://127.0.0.1:$ErpPort"
+$AbUrl   = "http://127.0.0.1:$AbPort"
+$ErpAdminEmail = 'erp@webvella.com'
+$ErpAdminPass  = 'erp'
+
+function Test-Http($url) {
+    try { Invoke-WebRequest $url -UseBasicParsing -TimeoutSec 2 | Out-Null; return $true } catch { return $false }
+}
+
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+
+# Bring the ERP up if it is not already listening.
+if (-not (Test-Http "$ErpUrl/manifest.webmanifest")) {
+    $erpExe = Join-Path $ErpDir 'AI.Erp.Site.exe'
+    if (Test-Path $erpExe) {
+        Start-Process -FilePath $erpExe -ArgumentList "--urls=$ErpUrl" -WorkingDirectory $ErpDir -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $LogDir "erp-$stamp.log") -RedirectStandardError (Join-Path $LogDir "erp-$stamp.err.log")
+    }
+    for ($i=0; $i -lt 90; $i++) { if (Test-Http "$ErpUrl/manifest.webmanifest") { break }; Start-Sleep -Seconds 2 }
+}
+
+# Bring AgentBridge up too (the assistant needs it). Best effort.
+if (-not (Test-Http "$AbUrl/health")) {
+    $abExe = Join-Path $AbDir 'agent.exe'
+    if (Test-Path $abExe) {
+        $env:ERP_BASE_URL = $ErpUrl; $env:ERP_USER = $ErpAdminEmail; $env:ERP_PASSWORD = $ErpAdminPass
+        Start-Process -FilePath $abExe -WorkingDirectory $AbDir -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $LogDir "agentbridge-$stamp.log") -RedirectStandardError (Join-Path $LogDir "agentbridge-$stamp.err.log")
+    }
+}
+
+$browser = $null
+foreach ($b in @(
+    "$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe",
+    "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+    "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+    "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe")) {
+    if (Test-Path $b) { $browser = $b; break }
+}
+
+if (Test-Http "$ErpUrl/manifest.webmanifest") {
+    if ($browser) { Start-Process $browser -ArgumentList "--app=$ErpUrl/?pwa=1" }
+    else { Start-Process $ErpUrl }
+} else {
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show(
+            "AI ERP non riesce ad avviarsi.`r`nControlla i log in: $LogDir",
+            'AI ERP', 'OK', 'Error') | Out-Null
+    } catch {
+        Write-Host "AI ERP non riesce ad avviarsi. Controlla i log in: $LogDir"
+    }
+}
+'@
+$launcherContent = $launcherTemplate.Replace('{{INSTALL_ROOT}}', $InstallRoot).Replace('{{ERP_PORT}}', "$ErpPort").Replace('{{AB_PORT}}', "$AbPort")
+[System.IO.File]::WriteAllText($launcherPs1, $launcherContent, $utf8NoBom)
+
 # --- PWA launcher (Desktop + Start Menu) ----------------------------------
 Log 'Installing the ERP launcher (PWA app window) ...'
 $icon = Join-Path $ErpDir 'wwwroot\assets\pwa-512x512.png'
@@ -300,12 +376,9 @@ if (-not $browser) { Warn 'No Edge/Chrome found; the PWA install prompt needs on
 function Make-Shortcut($path) {
     $ws = New-Object -ComObject WScript.Shell
     $sc = $ws.CreateShortcut($path)
-    if ($browser) {
-        $sc.TargetPath = $browser
-        $sc.Arguments = "--app=$ErpUrl/?pwa=1"
-    } else {
-        $sc.TargetPath = $ErpUrl
-    }
+    # Point at the launcher, not the browser URL, so the icon also starts the services.
+    $sc.TargetPath = Join-Path $PSHOME 'powershell.exe'
+    $sc.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launcherPs1`""
     if (Test-Path $icon) { $sc.IconLocation = "$icon,0" }
     $sc.WorkingDirectory = $ErpDir
     $sc.Description = "$Company - AI ERP"
@@ -335,3 +408,7 @@ Write-Host '    >>> Change this password immediately after the first login. <<<'
 Write-Host ''
 Write-Host "  To finish the PWA install, open the ERP in Edge/Chrome and click the"
 Write-Host "  'Install' icon in the address bar (the app icon is already on your desktop)."
+Write-Host ''
+Write-Host "  The 'AI ERP' icon on the Desktop also starts the services. If the ERP is"
+Write-Host "  not running (after a reboot, for example), just double-click the icon and it"
+Write-Host "  will bring it back up before opening the window."

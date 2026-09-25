@@ -379,11 +379,67 @@ wait_for_erp() {
 }
 
 # ---------------------------------------------------------------------------
+# Launcher script (Linux)
+# ---------------------------------------------------------------------------
+# The desktop icon must not just open a browser to a URL: if the ERP is not
+# running (after a reboot, or if it was closed) that URL gives a connection
+# refused error. The launcher brings the ERP (and AgentBridge) up first, then
+# opens the app window, so the icon works every time it is clicked.
+write_launcher_linux() {
+	log "Writing the launcher script ..."
+	local launcher="$INSTALL_ROOT/aierp-launch.sh"
+	cat > "$launcher" <<EOF
+#!/usr/bin/env bash
+# AI ERP launcher. Ensures the ERP (and AgentBridge) are running, then opens the app.
+ERP_PORT="${ERP_PORT}"
+AB_PORT="${AB_PORT}"
+INSTALL_ROOT="${INSTALL_ROOT}"
+ERP_DIR="\$INSTALL_ROOT/erp"
+AB_DIR="\$INSTALL_ROOT/agentbridge"
+LOG_DIR="\$INSTALL_ROOT/logs"
+ERP_URL="http://127.0.0.1:\${ERP_PORT}"
+AB_URL="http://127.0.0.1:\${AB_PORT}"
+ERP_ADMIN_EMAIL="${ERP_ADMIN_EMAIL}"
+ERP_ADMIN_PASSWORD="${ERP_ADMIN_PASSWORD}"
+mkdir -p "\$LOG_DIR"
+up() { curl -fs "\$1" >/dev/null 2>&1; }
+if ! up "\$ERP_URL/manifest.webmanifest"; then
+	stamp="\$(date +%Y%m%d-%H%M%S)"
+	if [ -x "\$ERP_DIR/AI.Erp.Site" ]; then
+		( cd "\$ERP_DIR" && setsid ./AI.Erp.Site --urls "\$ERP_URL" >"\$LOG_DIR/erp-\$stamp.log" 2>&1 & )
+	else
+		( cd "\$ERP_DIR" && setsid dotnet AI.Erp.Site.dll --urls "\$ERP_URL" >"\$LOG_DIR/erp-\$stamp.log" 2>&1 & )
+	fi
+	for i in \$(seq 1 90); do up "\$ERP_URL/manifest.webmanifest" && break; sleep 2; done
+fi
+if ! up "\$AB_URL/health"; then
+	stamp="\$(date +%Y%m%d-%H%M%S)"
+	if [ -x "\$AB_DIR/agent" ]; then
+		( cd "\$AB_DIR" && ERP_BASE_URL="\$ERP_URL" ERP_USER="\$ERP_ADMIN_EMAIL" ERP_PASSWORD="\$ERP_ADMIN_PASSWORD" setsid ./agent >"\$LOG_DIR/agentbridge-\$stamp.log" 2>&1 & )
+	elif [ -f "\$AB_DIR/agent.dll" ]; then
+		( cd "\$AB_DIR" && ERP_BASE_URL="\$ERP_URL" ERP_USER="\$ERP_ADMIN_EMAIL" ERP_PASSWORD="\$ERP_ADMIN_PASSWORD" setsid dotnet agent.dll >"\$LOG_DIR/agentbridge-\$stamp.log" 2>&1 & )
+	fi
+fi
+browser=""
+for b in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge; do
+	if command -v "\$b" >/dev/null 2>&1; then browser="\$b"; break; fi
+done
+if up "\$ERP_URL/manifest.webmanifest"; then
+	if [ -n "\$browser" ]; then "\$browser" --app="\${ERP_URL}/?pwa=1" >/dev/null 2>&1 & else xdg-open "\$ERP_URL" >/dev/null 2>&1 & fi
+else
+	echo "AI ERP non riesce ad avviarsi. Controlla i log in \$LOG_DIR" >&2
+fi
+EOF
+	chmod +x "$launcher"
+}
+
+# ---------------------------------------------------------------------------
 # PWA launcher (desktop + launcher icon)
 # ---------------------------------------------------------------------------
 install_pwa_launcher_linux() {
 	log "Installing the ERP launcher (PWA app window) ..."
 	local icon="$ERP_DIR/wwwroot/assets/pwa-512x512.png"
+	local launcher="$INSTALL_ROOT/aierp-launch.sh"
 	local browser=""
 	for b in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge; do
 		if need_cmd "$b"; then browser="$b"; break; fi
@@ -392,27 +448,23 @@ install_pwa_launcher_linux() {
 
 	local desktop_file="$HOME/.local/share/applications/aierp.desktop"
 	mkdir -p "$HOME/.local/share/applications"
-	if [ -n "$browser" ]; then
-		cat > "$desktop_file" <<EOF
+	# Run through the launcher so the icon also starts the services if they are down.
+	cat > "$desktop_file" <<EOF
 [Desktop Entry]
 Type=Application
 Name=AI ERP
 Comment=${COMPANY_NAME} - AI ERP
-Exec=${browser} --app=${ERP_URL}/?pwa=1
+Exec=${launcher}
 Icon=${icon}
 Terminal=false
 Categories=Office;
 EOF
-		chmod +x "$desktop_file"
-		need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
-		local desk="$HOME/Desktop"
-		[ -d "$desk" ] && cp "$desktop_file" "$desk/aierp.desktop" && chmod +x "$desk/aierp.desktop" || true
-		log "Launcher installed. Opening the ERP app window..."
-		"$browser" --app="${ERP_URL}/?pwa=1" >/dev/null 2>&1 &
-	else
-		log "Opening the ERP in the default browser..."
-		( xdg-open "$ERP_URL" >/dev/null 2>&1 || true )
-	fi
+	chmod +x "$desktop_file"
+	need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+	local desk="$HOME/Desktop"
+	[ -d "$desk" ] && cp "$desktop_file" "$desk/aierp.desktop" && chmod +x "$desk/aierp.desktop" || true
+	log "Launcher installed. Opening the ERP app window..."
+	"$launcher" >/dev/null 2>&1 &
 }
 
 # ---------------------------------------------------------------------------
@@ -467,6 +519,7 @@ main() {
 			customize_bootstrap
 			configure_agentbridge
 			start_services_linux
+			write_launcher_linux
 			install_pwa_launcher_linux
 			;;
 		Darwin)

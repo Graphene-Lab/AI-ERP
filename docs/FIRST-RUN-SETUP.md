@@ -48,6 +48,25 @@ The installer is open source and you can read exactly what it does before runnin
 official release archives from the project's own GitHub releases and from the EDB site, writes
 its configuration under your local app data folder, and starts the services.
 
+## Desktop icon: "This site can't be reached / ERR_CONNECTION_REFUSED"
+
+The ERP is a local web server. The browser address `http://127.0.0.1:5080` only works while the
+ERP process is running. If you open it when the process is not running — after a computer restart,
+or after the program was closed — the browser shows "This site can't be reached" with
+`ERR_CONNECTION_REFUSED`. This is **not** a proxy or firewall problem: the program simply was not
+running.
+
+The **AI ERP** icon that the installer puts on the Desktop (and in the Start Menu) is a launcher,
+not just a link. When you double-click it, it checks whether the ERP is running and, if it is not,
+starts the ERP and the assistant before opening the app window. So after a restart you do not need
+to run the installer again — just double-click the icon.
+
+The launcher writes logs under the install folder (`%LOCALAPPDATA%\aierp\logs` on Windows,
+`~/.aierp/logs` on Linux). If the icon reports that the ERP cannot start, check those logs. To
+start the ERP by hand instead, run the executable in the install folder with the URL argument, for
+example `AI.Erp.Site.exe --urls=http://127.0.0.1:5080` (Windows) or
+`./AI.Erp.Site --urls http://127.0.0.1:5080` (Linux).
+
 ## Prerequisites
 
 - A PostgreSQL database that is running and reachable from the app.
