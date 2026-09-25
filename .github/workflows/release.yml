@@ -147,3 +147,6 @@ jobs:
           files: |
             dist/aierp-win-x64.tar.gz
             dist/aierp-linux-x64.tar.gz
+            installer/install.bat
+            installer/install.ps1
+            installer/install.sh

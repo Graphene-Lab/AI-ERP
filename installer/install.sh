@@ -43,8 +43,8 @@ AB_DIR="$INSTALL_ROOT/agentbridge"
 LOG_DIR="$INSTALL_ROOT/logs"
 
 # Release tags. Pinned for reproducibility; override with env vars.
-ERP_TAG="${ERP_TAG:-v1.26.09.22}"
-AB_TAG="${AB_TAG:-v1.26.09.19}"
+ERP_TAG="${ERP_TAG:-v1.26.09.25}"
+AB_TAG="${AB_TAG:-v1.26.09.22}"
 TOOL_TAG="${TOOL_TAG:-v1.26.09.11}"
 
 OS="$(uname -s)"
@@ -191,15 +191,77 @@ install_postgres_linux() {
 	log "PostgreSQL 16 installed."
 }
 
-ensure_db_linux() {
-	log "Creating database '$DB_NAME' and user '$DB_USER'..."
+# Read the ERP user password out of an existing config.json, if present.
+password_from_config() {
+	local cfg="$ERP_DIR/config.json"
+	[ -f "$cfg" ] || return 0
+	local cs
+	if need_cmd jq; then
+		cs="$(jq -r '.Settings.ConnectionString // empty' "$cfg" 2>/dev/null)"
+	else
+		cs="$(sed -n 's/.*"ConnectionString"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$cfg" 2>/dev/null | head -n1)"
+	fi
+	[ -n "$cs" ] || return 0
+	printf '%s' "$cs" | sed -n 's/.*[Pp]assword=\([^;]*\).*/\1/p'
+}
+
+# Try to authenticate as <user>/<pass> against <db>. Returns 0 on success.
+test_pg_auth() { # test_pg_auth <user> <pass> <db>
+	local pass="$2"
+	[ -n "$pass" ] || return 1
+	PGPASSWORD="$pass" psql -h localhost -p 5432 -U "$1" -d "$3" -tAc 'SELECT 1' >/dev/null 2>&1
+}
+
+# Create/sync the ERP role and database using the postgres superuser (via sudo).
+# Single quotes in the password are doubled so they cannot break the SQL.
+sync_db_from_superuser() {
 	have_sudo || die "Cannot obtain sudo to configure PostgreSQL."
+	local esc=${DB_PASSWORD//\'/\'\'}
 	# The ERP creates casts between the built-in text/uuid types on first run, which
 	# requires a superuser role, so the app role is created as SUPERUSER.
-	sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1 \
-		|| sudo -u postgres psql -c "CREATE ROLE ${DB_USER} LOGIN SUPERUSER PASSWORD '${DB_PASSWORD}';" >/dev/null
-	sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 \
+	if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" 2>/dev/null | grep -q 1; then
+		sudo -u postgres psql -c "ALTER ROLE ${DB_USER} LOGIN SUPERUSER PASSWORD '${esc}';" >/dev/null \
+			|| die "Could not update the password of the '${DB_USER}' database user."
+	else
+		sudo -u postgres psql -c "CREATE ROLE ${DB_USER} LOGIN SUPERUSER PASSWORD '${esc}';" >/dev/null \
+			|| die "Could not create the '${DB_USER}' database user."
+	fi
+	sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null | grep -q 1 \
 		|| sudo -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
+}
+
+# Ensure the ERP database user can log in with a single known password, without
+# ever leaving config.json and the database out of sync. Older installers
+# generated a brand-new random password on every run, which broke the existing
+# connection; this recovers from that too:
+#   1. Try every known password (env, db_password.txt, current config.json) as
+#      the ERP user. The first that works is reused unchanged.
+#   2. Otherwise sync the ERP user to the chosen password via the superuser.
+ensure_db_linux() {
+	log "Ensuring database '$DB_NAME' and user '$DB_USER' ..."
+	local candidates=() c cfgpass
+	[ -n "${DB_PASSWORD:-}" ] && candidates+=("$DB_PASSWORD")
+	if [ -f "$INSTALL_ROOT/db_password.txt" ]; then
+		local saved; saved="$(cat "$INSTALL_ROOT/db_password.txt" 2>/dev/null)"
+		[ -n "$saved" ] && candidates+=("$saved")
+	fi
+	cfgpass="$(password_from_config || true)"
+	[ -n "$cfgpass" ] && candidates+=("$cfgpass")
+
+	for c in ${candidates[@]+"${candidates[@]}"}; do
+		if test_pg_auth "$DB_USER" "$c" "$DB_NAME"; then
+			DB_PASSWORD="$c"
+			log "Reusing the existing '${DB_USER}' database password."
+			return 0
+		fi
+	done
+
+	# Nothing known logs in as the ERP user: force the chosen password through the
+	# postgres superuser (sudo peer auth on the local socket needs no password).
+	log "The existing '${DB_USER}' password is unknown or out of sync; resetting it via the postgres superuser."
+	sync_db_from_superuser
+	test_pg_auth "$DB_USER" "$DB_PASSWORD" "$DB_NAME" \
+		|| die "Could not make the '${DB_USER}' database user log in. Check that PostgreSQL is running and sudo works."
 	log "Database ready."
 }
 
@@ -236,7 +298,16 @@ download_extract() { # download_extract <repo> <tag> <asset> <dest>
 write_erp_config() {
 	log "Writing ERP config.json ..."
 	local conn="Server=localhost;Port=5432;User Id=${DB_USER};Password=${DB_PASSWORD};Database=${DB_NAME};Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
-	local jwtkey enckey; jwtkey="$(gen_key)"; enckey="$(gen_key)"
+	# Reuse the encryption and JWT keys from an existing config.json: regenerating
+	# them on a re-run would make data encrypted by the previous install unreadable.
+	local jwtkey enckey
+	enckey=""; jwtkey=""
+	if [ -f "$ERP_DIR/config.json" ] && need_cmd jq; then
+		enckey="$(jq -r '.Settings.EncryptionKey // empty' "$ERP_DIR/config.json" 2>/dev/null)"
+		jwtkey="$(jq -r '.Settings.Jwt.Key // empty' "$ERP_DIR/config.json" 2>/dev/null)"
+	fi
+	[ -n "$enckey" ] || enckey="$(gen_key)"
+	[ -n "$jwtkey" ] || jwtkey="$(gen_key)"
 	# Use jq so values with quotes/backslashes (company name, password) are escaped.
 	if need_cmd jq; then
 		jq -n --arg conn "$conn" --arg enc "$enckey" --arg tz "$TIMEZONE" \

@@ -52,3 +52,26 @@ back up.
 
 The launcher writes its logs under the install folder (`%LOCALAPPDATA%\aierp\logs` on Windows,
 `~/.aierp/logs` on Linux). If the icon ever shows that the ERP cannot start, look there.
+
+## Re-running the installer is safe
+
+You can run the installer again at any time (for example to pick up a new release or a fixed
+launcher). It never wipes your data:
+
+- The database password is remembered in `db_password.txt` under the install folder and reused.
+  If that file is missing (installed with an older installer), the installer recovers the
+  working password from the existing `config.json`, or resets the ERP database user through
+  the PostgreSQL superuser. On Windows, if even the PostgreSQL superuser password is unknown
+  (a side effect of installers older than v1.26.09.25 that generated a new random password on
+  every run), the installer briefly switches `pg_hba.conf` to localhost-only `trust`, resets
+  the ERP user, and always restores the original file. Administrator rights are requested for
+  that step only.
+- The encryption key and the JWT key from an existing `config.json` are reused, so data
+  encrypted by a previous install stays readable and logged-in sessions are not invalidated.
+
+## Where to download the installer
+
+`install.bat`, `install.ps1` and `install.sh` are attached to every GitHub release, next to
+the platform archives, on the [releases page](https://github.com/Graphene-Lab/AI-ERP/releases).
+`install.bat` also fetches the latest `install.ps1` from this repository by itself when the
+two files are not together, so a lone `install.bat` always runs the newest installer logic.

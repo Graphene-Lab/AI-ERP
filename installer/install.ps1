@@ -8,8 +8,8 @@ $ProgressPreference = 'SilentlyContinue'
 $ErpRepo   = 'Graphene-Lab/AI-ERP'
 $AbRepo    = 'Graphene-Lab/AgentBridge'
 $ToolRepo  = 'Graphene-Lab/ErpTool'
-$ErpTag    = if ($env:ERP_TAG)  { $env:ERP_TAG }  else { 'v1.26.09.22' }
-$AbTag     = if ($env:AB_TAG)   { $env:AB_TAG }   else { 'v1.26.09.19' }
+$ErpTag    = if ($env:ERP_TAG)  { $env:ERP_TAG }  else { 'v1.26.09.25' }
+$AbTag     = if ($env:AB_TAG)   { $env:AB_TAG }   else { 'v1.26.09.22' }
 $ToolTag   = if ($env:TOOL_TAG) { $env:TOOL_TAG } else { 'v1.26.09.11' }
 
 $ErpPort = if ($env:ERP_PORT) { [int]$env:ERP_PORT } else { 5080 }
@@ -110,15 +110,29 @@ $KeyPlain = Read-Line "API key for ${Provider}:"
 if ([string]::IsNullOrWhiteSpace($KeyPlain)) { throw 'An API key is required for the assistant.' }
 
 # --- PostgreSQL -----------------------------------------------------------
-# Reuse a previously generated password so re-running the installer (for example
-# to pick up a new launcher) does not break the existing database connection.
+# The ERP logs into PostgreSQL with the password we write into config.json, so a
+# re-run of this installer must never leave the two out of sync. Older versions
+# generated a brand-new random password on every run, which broke the existing
+# database connection; this logic recovers from that state too:
+#   1. Try every known password (env var, db_password.txt, the current
+#      config.json) as the ERP database user. The first one that works wins.
+#   2. If none works, try them as the postgres superuser and sync the ERP user
+#      to the one that works.
+#   3. If the postgres superuser password is unknown too (an old installer
+#      generated a new random password on every run), briefly switch
+#      pg_hba.conf to "trust", reset the ERP user password, restore
+#      pg_hba.conf. Admin rights are requested for this step only.
 $DbPasswordFile = Join-Path $InstallRoot 'db_password.txt'
-if ($env:DB_PASSWORD) {
-    $DbPassword = $env:DB_PASSWORD
-} elseif (Test-Path $DbPasswordFile) {
-    $DbPassword = (Get-Content $DbPasswordFile -Raw).Trim()
-} else {
-    $DbPassword = New-RandomHex 16
+$FreshPassword = New-RandomHex 16
+
+function Get-PasswordFromErpConfig {
+    $cfg = Join-Path $ErpDir 'config.json'
+    if (-not (Test-Path $cfg)) { return $null }
+    try {
+        $cs = (Get-Content $cfg -Raw | ConvertFrom-Json).Settings.ConnectionString
+        if ($cs -and $cs -match '(?i)Password=([^;]+)') { return $Matches[1] }
+    } catch { }
+    return $null
 }
 
 function Find-Psql {
@@ -152,7 +166,7 @@ if ($env:SKIP_PG_INSTALL -ne '1') {
                 Log 'Direct download failed; trying winget...'
                 # Pass --serverport too: the EDB installer defaults to 5433, but the
                 # ERP and the psql calls below use $DbPort.
-                winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements --override "--mode unattended --unattendedmodeui none --superpassword $DbPassword --serverport $DbPort"
+                winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements --override "--mode unattended --unattendedmodeui none --superpassword $FreshPassword --serverport $DbPort"
             } else { throw "Could not download PostgreSQL: $($_.Exception.Message). Install it manually or set SKIP_PG_INSTALL=1." }
         }
         # Only run the EDB installer when the download actually succeeded; a failed
@@ -163,7 +177,7 @@ if ($env:SKIP_PG_INSTALL -ne '1') {
             # to match the ERP. Keep server + commandlinetools (psql); skip pgAdmin/stackbuilder.
             $p = Start-Process -FilePath $edbExe -Verb RunAs -ArgumentList @(
                 '--mode','unattended','--unattendedmodeui','none',
-                '--superpassword', $DbPassword,
+                '--superpassword', $FreshPassword,
                 '--servicename','postgresql-x64-16',
                 '--serverport', "$DbPort",
                 '--enable-components','server,commandlinetools',
@@ -178,21 +192,146 @@ if ($env:SKIP_PG_INSTALL -ne '1') {
 }
 $psql = Find-Psql
 if (-not $psql) { throw 'psql not found after install.' }
-
-Log "Creating database '$DbName' and user '$DbUser'..."
-$env:PGPASSWORD = $DbPassword
 $psqlDir = Split-Path $psql -Parent
-# Create role/db via the postgres superuser if needed; try as current admin first.
-function Pg-Scalar($sql) { & $psql -U postgres -h localhost -p $DbPort -tAc $sql 2>$null }
-$roleExists = Pg-Scalar "SELECT 1 FROM pg_roles WHERE rolname='$DbUser'"
-if (-not $roleExists) {
-    # The ERP creates casts between the built-in text/uuid types on first run,
-    # which requires a superuser role.
-    & $psql -U postgres -h localhost -p $DbPort -c "CREATE ROLE $DbUser LOGIN SUPERUSER PASSWORD '$DbPassword';" 2>$null | Out-Null
+
+function Test-PgAuth($user, $pass, $db) {
+    if ([string]::IsNullOrWhiteSpace($pass)) { return $false }
+    $env:PGPASSWORD = $pass
+    & $psql -U $user -h localhost -p $DbPort -d $db -tAc 'SELECT 1' 2>$null | Out-Null
+    return ($LASTEXITCODE -eq 0)
 }
-$dbExists = Pg-Scalar "SELECT 1 FROM pg_database WHERE datname='$DbName'"
-if (-not $dbExists) {
-    & $psql -U postgres -h localhost -p $DbPort -c "CREATE DATABASE $DbName OWNER $DbUser;" 2>$null | Out-Null
+
+# Create/sync the ERP role and database using an authenticated postgres superuser.
+# Single quotes in the password are doubled so they cannot break the SQL.
+function Sync-PgFromSuperuser($pass) {
+    $env:PGPASSWORD = $pass
+    $esc = $pass.Replace("'", "''")
+    $roleExists = (& $psql -U postgres -h localhost -p $DbPort -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DbUser'" 2>$null)
+    if ($roleExists) {
+        # Keep the ERP user in step with the password we are about to write into config.json.
+        & $psql -U postgres -h localhost -p $DbPort -d postgres -c "ALTER ROLE $DbUser LOGIN SUPERUSER PASSWORD '$esc';" 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not update the password of the '$DbUser' database user." }
+    } else {
+        # The ERP creates casts between the built-in text/uuid types on first run,
+        # which requires a superuser role.
+        & $psql -U postgres -h localhost -p $DbPort -d postgres -c "CREATE ROLE $DbUser LOGIN SUPERUSER PASSWORD '$esc';" 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not create the '$DbUser' database user." }
+    }
+    $dbExists = (& $psql -U postgres -h localhost -p $DbPort -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'" 2>$null)
+    if (-not $dbExists) {
+        & $psql -U postgres -h localhost -p $DbPort -d postgres -c "CREATE DATABASE $DbName OWNER $DbUser;" 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not create the '$DbName' database." }
+    }
+}
+
+# Last resort: the postgres superuser password is unknown (an older installer
+# generated a new one on every run). Ask for admin rights once, switch
+# pg_hba.conf to "trust" for localhost only, reset the ERP user password, then
+# always restore pg_hba.conf and restart the service.
+function Repair-PgTrustAccess($pass) {
+    Log 'Repairing database access: Windows administrator rights are needed for a moment.'
+    $pgConfig = Join-Path $psqlDir 'pg_config.exe'
+    if (-not (Test-Path $pgConfig)) {
+        $gc = Get-Command pg_config -ErrorAction SilentlyContinue
+        if ($gc) { $pgConfig = $gc.Source }
+    }
+    if (-not $pgConfig) { throw 'pg_config not found: cannot locate pg_hba.conf to repair database access.' }
+    $sysconf = (& $pgConfig --sysconfdir).Trim()
+    $hba = Join-Path $sysconf 'pg_hba.conf'
+    if (-not (Test-Path $hba)) { throw "pg_hba.conf not found at $hba." }
+
+    $paramFile = Join-Path $env:TEMP 'aierp-db-repair.json'
+    $repairPs1 = Join-Path $env:TEMP 'aierp-db-repair.ps1'
+    $repairLog = Join-Path $env:TEMP 'aierp-db-repair.log'
+    @{ hba=$hba; psql=$psql; port=$DbPort; dbName=$DbName; dbUser=$DbUser; password=$pass } |
+        ConvertTo-Json | Set-Content -Path $paramFile -Encoding UTF8
+
+    $repairBody = @'
+$ErrorActionPreference = 'Stop'
+$log = Join-Path $env:TEMP 'aierp-db-repair.log'
+try {
+    $p = Get-Content -Raw -Encoding UTF8 (Join-Path $env:TEMP 'aierp-db-repair.json') | ConvertFrom-Json
+    $svc = Get-Service -Name 'postgresql*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $svc) { throw 'PostgreSQL service not found.' }
+    $backup = $p.hba + '.aierp-bak'
+    Copy-Item $p.hba $backup -Force
+    try {
+        $lines = @(Get-Content $p.hba)
+        (@('host all all 127.0.0.1/32 trust', 'host all all ::1/128 trust') + $lines) | Set-Content $p.hba -Encoding ASCII
+        if ($svc.Status -eq 'Running') { Restart-Service $svc.Name -Force } else { Start-Service $svc.Name }
+        for ($i = 0; $i -lt 30; $i++) { if ((Get-Service $svc.Name).Status -eq 'Running') { break }; Start-Sleep -Seconds 1 }
+        $env:PGPASSWORD = ''
+        & $p.psql -U postgres -h localhost -p $p.port -d postgres -tAc 'SELECT 1' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Trust connection failed.' }
+        $role = & $p.psql -U postgres -h localhost -p $p.port -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$($p.dbUser)'"
+        $esc = $p.password.Replace("'", "''")
+        if ($role) {
+            & $p.psql -U postgres -h localhost -p $p.port -d postgres -c "ALTER ROLE $($p.dbUser) LOGIN SUPERUSER PASSWORD '$esc';" | Out-Null
+        } else {
+            & $p.psql -U postgres -h localhost -p $p.port -d postgres -c "CREATE ROLE $($p.dbUser) LOGIN SUPERUSER PASSWORD '$esc';" | Out-Null
+        }
+        if ($LASTEXITCODE -ne 0) { throw 'Could not reset the ERP database user password.' }
+        $db = & $p.psql -U postgres -h localhost -p $p.port -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$($p.dbName)'"
+        if (-not $db) {
+            & $p.psql -U postgres -h localhost -p $p.port -d postgres -c "CREATE DATABASE $($p.dbName) OWNER $($p.dbUser);" | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the ERP database.' }
+        }
+    } finally {
+        Copy-Item $backup $p.hba -Force
+        Remove-Item $backup -Force -ErrorAction SilentlyContinue
+        try { Restart-Service $svc.Name -Force } catch { }
+    }
+    'Database access repaired.' | Out-File $log -Encoding UTF8
+    exit 0
+} catch {
+    "Repair failed: $($_.Exception.Message)" | Out-File $log -Encoding UTF8
+    exit 1
+}
+'@
+    Set-Content -Path $repairPs1 -Value $repairBody -Encoding UTF8
+    $proc = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Verb RunAs -Wait -PassThru `
+        -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$repairPs1`""
+    if ($proc.ExitCode -ne 0) {
+        $why = ''
+        if (Test-Path $repairLog) { $why = (Get-Content $repairLog -Raw).Trim() }
+        throw "Database access repair failed. $why"
+    }
+}
+
+Log 'Checking database access ...'
+$Candidates = @()
+if ($env:DB_PASSWORD) { $Candidates += $env:DB_PASSWORD }
+if (Test-Path $DbPasswordFile) { $Candidates += (Get-Content $DbPasswordFile -Raw).Trim() }
+$cfgPass = Get-PasswordFromErpConfig
+if ($cfgPass) { $Candidates += $cfgPass }
+$Candidates += $FreshPassword
+$Candidates = @($Candidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+
+$DbPassword = $null
+foreach ($c in $Candidates) {
+    if (Test-PgAuth $DbUser $c $DbName) {
+        $DbPassword = $c
+        Log "Reusing the existing '$DbUser' database password."
+        break
+    }
+}
+if (-not $DbPassword) {
+    foreach ($c in $Candidates) {
+        if (Test-PgAuth 'postgres' $c 'postgres') {
+            $DbPassword = $c
+            Log "Syncing the '$DbUser' database user with the known postgres password ..."
+            Sync-PgFromSuperuser $c
+            break
+        }
+    }
+}
+if (-not $DbPassword) {
+    Log 'The existing PostgreSQL superuser password is unknown (an older installer generated a new one on every run).'
+    Repair-PgTrustAccess $FreshPassword
+    $DbPassword = $FreshPassword
+}
+if (-not (Test-PgAuth $DbUser $DbPassword $DbName)) {
+    throw "Could not connect to the '$DbName' database as '$DbUser' after the repair. Check the PostgreSQL service and try again."
 }
 # Persist the password so a later re-run reuses it instead of generating a new one.
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
@@ -218,15 +357,28 @@ Get-Extract $ToolRepo $ToolTag "ErpTool-$($ToolTag.TrimStart('v')).zip" (Join-Pa
 # --- ERP config -----------------------------------------------------------
 Log 'Writing ERP config.json ...'
 $conn = "Server=localhost;Port=$DbPort;User Id=$DbUser;Password=$DbPassword;Database=$DbName;Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
+# Reuse the encryption and JWT keys from an existing config.json: regenerating
+# them on a re-run would make data encrypted by the previous install unreadable.
+$encKey = $null; $jwtKey = $null
+$existingCfg = Join-Path $ErpDir 'config.json'
+if (Test-Path $existingCfg) {
+    try {
+        $old = Get-Content $existingCfg -Raw | ConvertFrom-Json
+        $encKey = $old.Settings.EncryptionKey
+        $jwtKey = $old.Settings.Jwt.Key
+    } catch { }
+}
+if ([string]::IsNullOrWhiteSpace($encKey)) { $encKey = (New-RandomHex 32).ToUpper() }
+if ([string]::IsNullOrWhiteSpace($jwtKey)) { $jwtKey = New-RandomHex 48 }
 $erpConfig = [ordered]@{
     Settings = [ordered]@{
         ConnectionString = $conn
-        EncryptionKey = (New-RandomHex 32).ToUpper()
+        EncryptionKey = $encKey
         Lang = 'en'; Locale = 'en-US'; TimeZoneName = $Tz; CacheKey = ''
         DevelopmentMode = 'false'; EnableBackgroundJobs = 'true'; EnableFileSystemStorage = 'false'
         EmailEnabled = $false
         AppName = $Company; NavLogoUrl = ''; SystemMasterBackgroundImageUrl = ''
-        Jwt = [ordered]@{ Key = (New-RandomHex 48); Issuer = 'ai-erp'; Audience = 'ai-erp' }
+        Jwt = [ordered]@{ Key = $jwtKey; Issuer = 'ai-erp'; Audience = 'ai-erp' }
     }
 }
 $erpConfig | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $ErpDir 'config.json') -Encoding UTF8
