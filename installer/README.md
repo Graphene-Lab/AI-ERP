@@ -53,6 +53,11 @@ back up.
 The launcher writes its logs under the install folder (`%LOCALAPPDATA%\aierp\logs` on Windows,
 `~/.aierp/logs` on Linux). If the icon ever shows that the ERP cannot start, look there.
 
+The installer itself also waits for the ERP to answer before it reports success: if the ERP
+fails to start (for example the database rejects the password), the install stops with an
+error that points to the log file instead of finishing silently. Re-running the installer
+after fixing the cause is safe.
+
 ## Re-running the installer is safe
 
 You can run the installer again at any time (for example to pick up a new release or a fixed

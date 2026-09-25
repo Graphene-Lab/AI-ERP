@@ -438,7 +438,11 @@ for ($i=0; $i -lt 60; $i++) {
     try { Invoke-WebRequest "$ErpUrl/manifest.webmanifest" -UseBasicParsing -TimeoutSec 3 | Out-Null; $up = $true; break }
     catch { Start-Sleep -Seconds 2 }
 }
-if ($up) { Log 'ERP is up.' } else { Warn 'ERP did not respond within 120s; check logs.' }
+if ($up) {
+    Log 'ERP is up.'
+} else {
+    throw "ERP failed to start within 120s. The reason is in $(Join-Path $LogDir 'erp.log') and $(Join-Path $LogDir 'erp.err.log') (a common cause is the database not being reachable)."
+}
 
 $abExe = Join-Path $AbDir 'agent.exe'
 if (Test-Path $abExe) {

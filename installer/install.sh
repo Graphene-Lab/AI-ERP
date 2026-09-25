@@ -430,7 +430,7 @@ start_services_linux() {
 		( cd "$ERP_DIR" && setsid dotnet AI.Erp.Site.dll --urls "$ERP_URL" >"$LOG_DIR/erp.log" 2>&1 & echo $! > "$INSTALL_ROOT/erp.pid" )
 	fi
 	log "ERP started (pid $(cat "$INSTALL_ROOT/erp.pid")). Waiting for first-run setup..."
-	wait_for_erp
+	wait_for_erp || die "ERP failed to start. The reason is in $LOG_DIR/erp.log (a common cause is the database not being reachable)."
 	if [ -x "$AB_DIR/agent" ] || [ -f "$AB_DIR/agent.dll" ]; then
 		local abexe="$AB_DIR/agent"
 		[ -x "$abexe" ] || abexe="dotnet $AB_DIR/agent.dll"
@@ -446,7 +446,8 @@ wait_for_erp() {
 		if curl -fs "$ERP_URL/manifest.webmanifest" >/dev/null 2>&1; then log "ERP is up."; return 0; fi
 		sleep 2
 	done
-	warn "ERP did not respond within 120s; check $LOG_DIR/erp.log"
+	warn "ERP did not respond within 120s."
+	return 1
 }
 
 # ---------------------------------------------------------------------------

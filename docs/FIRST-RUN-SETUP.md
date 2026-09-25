@@ -279,3 +279,29 @@ REST API (`api/v3.0/p/agent/...`). The agent logs in with the admin account. The
 Seed data in the current file: 1 company, 6 customers, 12 products, 4 suppliers, plus the
 supporting master data (VAT codes, payment terms, warehouses, price lists, exchange rates and
 more). Call `setup-status` to see the exact count of every seeded entity.
+
+## Troubleshooting: the ERP URL does not open (ERR_CONNECTION_REFUSED)
+
+`ERR_CONNECTION_REFUSED` means nothing was listening on the port: the ERP web server is not
+running. It is not a firewall or proxy problem. Work through these in order.
+
+1. **Use the desktop icon.** The AI ERP icon is a launcher: it starts the ERP (and the
+   assistant) when they are not running and only then opens the app window. After a reboot,
+   or if the program was closed, double-click the icon instead of typing the address.
+2. **Check whether the ERP is running.** On Linux: `pgrep -f AI.Erp.Site`. If nothing is
+   running, start it with the launcher (`~/.aierp/aierp-launch.sh`).
+3. **Read the log.** `~/.aierp/logs/erp.log` on Linux, `%LOCALAPPDATA%\aierp\logs` on
+   Windows. The most common fatal error at startup is
+   `password authentication failed for user "aierp"`: the password in
+   `~/.aierp/erp/config.json` no longer matches the one in the database. Installers older
+   than v1.26.09.25 generated a new random database password on every run, which caused
+   exactly this. The fix is to run the current installer again: it recovers the database
+   connection by itself and never wipes your data.
+4. **Opening the ERP from another computer?** The ERP listens on `127.0.0.1` only, which is
+   reachable only from the machine it runs on. From another computer, open an SSH tunnel
+   (`ssh -L 5080:127.0.0.1:5080 user@server`, then browse to `http://127.0.0.1:5080`),
+   or start the ERP bound to a reachable address (`--urls http://0.0.0.0:5080`) knowing
+   that everyone on the network can then reach it.
+
+The installer now also stops with an error when the ERP does not come up, so an install that
+finished without an error means the ERP was really responding.
