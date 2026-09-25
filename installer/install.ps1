@@ -110,7 +110,16 @@ $KeyPlain = Read-Line "API key for ${Provider}:"
 if ([string]::IsNullOrWhiteSpace($KeyPlain)) { throw 'An API key is required for the assistant.' }
 
 # --- PostgreSQL -----------------------------------------------------------
-$DbPassword = if ($env:DB_PASSWORD) { $env:DB_PASSWORD } else { New-RandomHex 16 }
+# Reuse a previously generated password so re-running the installer (for example
+# to pick up a new launcher) does not break the existing database connection.
+$DbPasswordFile = Join-Path $InstallRoot 'db_password.txt'
+if ($env:DB_PASSWORD) {
+    $DbPassword = $env:DB_PASSWORD
+} elseif (Test-Path $DbPasswordFile) {
+    $DbPassword = (Get-Content $DbPasswordFile -Raw).Trim()
+} else {
+    $DbPassword = New-RandomHex 16
+}
 
 function Find-Psql {
     $c = Get-Command psql -ErrorAction SilentlyContinue
@@ -185,6 +194,9 @@ $dbExists = Pg-Scalar "SELECT 1 FROM pg_database WHERE datname='$DbName'"
 if (-not $dbExists) {
     & $psql -U postgres -h localhost -p $DbPort -c "CREATE DATABASE $DbName OWNER $DbUser;" 2>$null | Out-Null
 }
+# Persist the password so a later re-run reuses it instead of generating a new one.
+New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
+Set-Content -Path $DbPasswordFile -Value $DbPassword -Encoding ASCII -NoNewline
 Log 'Database ready.'
 
 # --- Download + extract ---------------------------------------------------

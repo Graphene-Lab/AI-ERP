@@ -504,13 +504,22 @@ EOF
 main() {
 	log "AI ERP installer ($OS/$ARCH)"
 	mkdir -p "$INSTALL_ROOT"
-	DB_PASSWORD="${DB_PASSWORD:-$(gen_password)}"
+	# Reuse a previously generated password so re-running the installer (for
+	# example to pick up a new launcher) does not break the existing DB connection.
+	if [ -n "${DB_PASSWORD:-}" ]; then
+		:
+	elif [ -f "$INSTALL_ROOT/db_password.txt" ]; then
+		DB_PASSWORD="$(cat "$INSTALL_ROOT/db_password.txt")"
+	else
+		DB_PASSWORD="$(gen_password)"
+	fi
 	run_wizard
 
 	case "$OS" in
 		Linux)
 			install_postgres_linux
 			ensure_db_linux
+			printf '%s' "$DB_PASSWORD" > "$INSTALL_ROOT/db_password.txt"
 			ensure_jq
 			download_extract "$ERP_REPO" "$ERP_TAG" "aierp-linux-x64.tar.gz" "$ERP_DIR"
 			download_extract "$AB_REPO" "$AB_TAG" "agentbridge-linux-x64.tar.gz" "$AB_DIR"
