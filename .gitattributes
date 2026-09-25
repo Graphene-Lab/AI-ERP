@@ -68,3 +68,12 @@
 # release uploads from a Windows checkout are not CRLF.
 ###############################################################################
 *.sh text eol=lf
+
+###############################################################################
+# Windows batch files must keep CRLF in the stored blob, not just in the checkout.
+# Users download install.bat straight from raw.githubusercontent.com, which serves
+# the blob as-is (no checkout conversion). LF-only batch files are fragile on
+# cmd.exe, so we disable EOL normalization (-text) to guarantee the downloaded
+# file is CRLF regardless of any contributor's core.autocrlf setting.
+###############################################################################
+*.bat -text

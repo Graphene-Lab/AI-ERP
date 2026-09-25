@@ -3,7 +3,10 @@
 These files set up the whole AI ERP ecosystem (PostgreSQL 16, the ERP, AgentBridge and the
 ErpTool plugin) in one run.
 
-- `install.bat` — Windows launcher. Double-click it; it runs `install.ps1`.
+- `install.bat` — Windows launcher. Double-click it; it runs `install.ps1`. If
+  `install.ps1` is not next to it (for example when only `install.bat` was downloaded),
+  the launcher downloads the installer from GitHub and runs that instead. The window
+  stays open at the end so you can read the result.
 - `install.ps1` — the actual Windows installer.
 - `install.sh` — the Linux / macOS installer.
 
