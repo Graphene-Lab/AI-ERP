@@ -194,11 +194,46 @@ $psql = Find-Psql
 if (-not $psql) { throw 'psql not found after install.' }
 $psqlDir = Split-Path $psql -Parent
 
+# Windows PowerShell 5.1 promotes every line a native command writes to stderr
+# into a terminating NativeCommandError while $ErrorActionPreference is 'Stop',
+# and redirecting stderr to $null does not reliably prevent that. A database
+# that merely refuses a wrong password (or a server that closes the connection)
+# would therefore kill the installer before the recovery chain below could run.
+# These helpers relax the preference for the duration of the call and report
+# failure through the exit code instead.
+function Invoke-PsqlSafe([scriptblock]$Call) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $Call 2>&1 | Out-Null
+        return $LASTEXITCODE
+    } catch {
+        return 1
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
+# Same as Invoke-PsqlSafe but captures stdout; returns $null on failure.
+function Invoke-PsqlValue([scriptblock]$Call) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & $Call 2>$null
+        if ($LASTEXITCODE -ne 0) { return $null }
+        return $out
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
 function Test-PgAuth($user, $pass, $db) {
     if ([string]::IsNullOrWhiteSpace($pass)) { return $false }
     $env:PGPASSWORD = $pass
-    & $psql -U $user -h localhost -p $DbPort -d $db -tAc 'SELECT 1' 2>$null | Out-Null
-    return ($LASTEXITCODE -eq 0)
+    $rc = Invoke-PsqlSafe { & $psql -U $user -h localhost -p $DbPort -d $db -tAc 'SELECT 1' }
+    return ($rc -eq 0)
 }
 
 # Create/sync the ERP role and database using an authenticated postgres superuser.
@@ -206,21 +241,21 @@ function Test-PgAuth($user, $pass, $db) {
 function Sync-PgFromSuperuser($pass) {
     $env:PGPASSWORD = $pass
     $esc = $pass.Replace("'", "''")
-    $roleExists = (& $psql -U postgres -h localhost -p $DbPort -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DbUser'" 2>$null)
+    $roleExists = Invoke-PsqlValue { & $psql -U postgres -h localhost -p $DbPort -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DbUser'" }
     if ($roleExists) {
         # Keep the ERP user in step with the password we are about to write into config.json.
-        & $psql -U postgres -h localhost -p $DbPort -d postgres -c "ALTER ROLE $DbUser LOGIN SUPERUSER PASSWORD '$esc';" 2>$null | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not update the password of the '$DbUser' database user." }
+        $rc = Invoke-PsqlSafe { & $psql -U postgres -h localhost -p $DbPort -d postgres -c "ALTER ROLE $DbUser LOGIN SUPERUSER PASSWORD '$esc';" }
+        if ($rc -ne 0) { throw "Could not update the password of the '$DbUser' database user." }
     } else {
         # The ERP creates casts between the built-in text/uuid types on first run,
         # which requires a superuser role.
-        & $psql -U postgres -h localhost -p $DbPort -d postgres -c "CREATE ROLE $DbUser LOGIN SUPERUSER PASSWORD '$esc';" 2>$null | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not create the '$DbUser' database user." }
+        $rc = Invoke-PsqlSafe { & $psql -U postgres -h localhost -p $DbPort -d postgres -c "CREATE ROLE $DbUser LOGIN SUPERUSER PASSWORD '$esc';" }
+        if ($rc -ne 0) { throw "Could not create the '$DbUser' database user." }
     }
-    $dbExists = (& $psql -U postgres -h localhost -p $DbPort -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'" 2>$null)
+    $dbExists = Invoke-PsqlValue { & $psql -U postgres -h localhost -p $DbPort -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'" }
     if (-not $dbExists) {
-        & $psql -U postgres -h localhost -p $DbPort -d postgres -c "CREATE DATABASE $DbName OWNER $DbUser;" 2>$null | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not create the '$DbName' database." }
+        $rc = Invoke-PsqlSafe { & $psql -U postgres -h localhost -p $DbPort -d postgres -c "CREATE DATABASE $DbName OWNER $DbUser;" }
+        if ($rc -ne 0) { throw "Could not create the '$DbName' database." }
     }
 }
 

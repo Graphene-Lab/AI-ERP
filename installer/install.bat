@@ -19,6 +19,7 @@ if errorlevel 1 (
 if exist "%PS1_LOCAL%" (
   echo Starting the AI ERP installer...
   powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1_LOCAL%"
+  if errorlevel 1 goto failed
   goto finish
 )
 
@@ -37,9 +38,20 @@ if errorlevel 1 (
 
 echo Starting the AI ERP installer...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1_TMP%"
+if errorlevel 1 goto failed
 
 :finish
 echo.
 echo The installer has finished. You can close this window.
 echo.
 pause
+exit /b 0
+
+:failed
+echo.
+echo The installer stopped with an error. Read the message above to find the cause,
+echo fix it and run this file again: running it again is safe and never wipes data.
+echo Guide: https://github.com/Graphene-Lab/AI-ERP/blob/master/installer/README.md
+echo.
+pause
+exit /b 1

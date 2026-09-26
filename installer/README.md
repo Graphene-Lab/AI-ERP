@@ -58,6 +58,35 @@ fails to start (for example the database rejects the password), the install stop
 error that points to the log file instead of finishing silently. Re-running the installer
 after fixing the cause is safe.
 
+## First login
+
+The installer creates the ERP administrator account for you. When the app opens and asks
+for an email and a password you never set, use:
+
+- Email: `erp@webvella.com`
+- Password: `erp`
+
+The same credentials are printed at the end of the install. Change this password the first
+time you log in.
+
+## "server closed the connection unexpectedly" during "Checking database access"
+
+This means the PostgreSQL server on port 5432 dropped or refused the connection in a way
+that is not a plain wrong password (a stopped or half-started service, a program other than
+PostgreSQL holding the port, a broken data directory). The installer handles it: it tries
+every password it knows, then the `postgres` superuser, and as a last resort it restarts
+the PostgreSQL service and resets the ERP database user through a brief localhost-only
+`trust` window (this asks for Windows administrator rights once). If the repair still
+fails, the install stops with an error instead of pretending to succeed.
+
+If it keeps failing after a re-run:
+
+1. Open Windows Services (`services.msc`) and check that **postgresql-x64-16** is running.
+   If it is stopped, start it and run the installer again.
+2. Check that nothing else is using port 5432: `netstat -ano | findstr :5432`. If a
+   different program owns the port, stop it or pick a free port with `set DB_PORT=5433`
+   before running `install.bat` again.
+
 ## Re-running the installer is safe
 
 You can run the installer again at any time (for example to pick up a new release or a fixed
