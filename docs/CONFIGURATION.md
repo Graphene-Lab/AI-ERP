@@ -53,6 +53,7 @@ The agent logs in and gets a JWT. These settings sign and check that token.
 | `EnableBackgroundJobs` | Turn the background job runner on or off. |
 | `EmailEnabled` and the `Email*` keys | SMTP settings, only if you use email. |
 | `AppName` | The name shown in the app. |
+| `AssistantUrl` | The URL of the AI assistant (AgentBridge) shown as a link on the login page. Defaults to `http://127.0.0.1:5290`, the address the one-shot installer uses. Set it when the assistant runs on another host or port. |
 
 ## 2. The agent tool: environment variables
 

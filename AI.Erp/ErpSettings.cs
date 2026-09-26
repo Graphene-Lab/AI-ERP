@@ -38,6 +38,10 @@ namespace AI.Erp
 		public static string SystemMasterBackgroundImageUrl { get; private set; }
 		public static string AppName { get; private set; }
 
+		// URL of the AI assistant front-end (AgentBridge) that drives the ERP.
+		// Defaults to the local one-shot installer address; override in config for remote setups.
+		public static string AssistantUrl { get; private set; }
+
 		public static bool ShowAccounting { get; set; }
 		public static bool DevelopmentMode { get; private set; }
 		public static int DefaultSRID { get; private set; } = 4326;
@@ -107,6 +111,7 @@ namespace AI.Erp
 			NavLogoUrl = configuration[$"Settings:NavLogoUrl"];
 			SystemMasterBackgroundImageUrl = configuration[$"Settings:SystemMasterBackgroundImageUrl"];
 			AppName = configuration[$"Settings:AppName"];
+			AssistantUrl = string.IsNullOrWhiteSpace(configuration[$"Settings:AssistantUrl"]) ? "http://127.0.0.1:5290" : configuration[$"Settings:AssistantUrl"];
 
 			DevelopmentMode = string.IsNullOrWhiteSpace(configuration[$"Settings:DevelopmentMode"]) ? false : bool.Parse(configuration[$"Settings:DevelopmentMode"]);
 
