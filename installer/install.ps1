@@ -374,6 +374,17 @@ Set-Content -Path $DbPasswordFile -Value $DbPassword -Encoding ASCII -NoNewline
 Log 'Database ready.'
 
 # --- Download + extract ---------------------------------------------------
+# Stop instances left running by a previous setup attempt: on Windows they lock
+# the files we are about to overwrite, and a second instance started later would
+# fight the first one for the ERP port, leaving both unusable. Only processes
+# running from our own install root are touched.
+$stale = @(Get-CimInstance Win32_Process -Filter "Name='AI.Erp.Site.exe' OR Name='agent.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($InstallRoot, [StringComparison]::OrdinalIgnoreCase) })
+if ($stale) {
+    Log 'Stopping ERP/AgentBridge instances left running from a previous setup ...'
+    foreach ($p in $stale) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 2
+}
 New-Item -ItemType Directory -Force -Path $InstallRoot,$ErpDir,$AbDir,$LogDir | Out-Null
 function Get-Extract($repo, $tag, $asset, $dest) {
     $url = "https://github.com/$repo/releases/download/$tag/$asset"
@@ -391,7 +402,11 @@ Get-Extract $ToolRepo $ToolTag "ErpTool-$($ToolTag.TrimStart('v')).zip" (Join-Pa
 
 # --- ERP config -----------------------------------------------------------
 Log 'Writing ERP config.json ...'
-$conn = "Server=localhost;Port=$DbPort;User Id=$DbUser;Password=$DbPassword;Database=$DbName;Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
+# 127.0.0.1 instead of localhost: "localhost" resolves to ::1 first on Windows,
+# so the ERP would depend on the IPv6 loopback being both bound by PostgreSQL and
+# allowed in pg_hba.conf. The literal IPv4 address removes that ambiguity and
+# matches the address the installer itself polls.
+$conn = "Server=127.0.0.1;Port=$DbPort;User Id=$DbUser;Password=$DbPassword;Database=$DbName;Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
 # Reuse the encryption and JWT keys from an existing config.json: regenerating
 # them on a re-run would make data encrypted by the previous install unreadable.
 $encKey = $null; $jwtKey = $null
@@ -461,22 +476,51 @@ if (Test-Path $toolSrc) {
 
 # --- Start services -------------------------------------------------------
 Log 'Starting ERP and AgentBridge ...'
+
+# Prints the tail of a log file to the console so the real startup failure
+# reason is visible right away instead of being buried in a file path.
+function Show-LogTail($path, $lines) {
+    if (-not (Test-Path $path)) { return }
+    $content = $null
+    try { $content = @(Get-Content $path -Tail $lines -ErrorAction Stop) } catch { }
+    if ($content -and ($content | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+        Write-Host "--- last lines of $path ---" -ForegroundColor Yellow
+        $content | ForEach-Object { Write-Host $_ }
+        Write-Host '--- end ---' -ForegroundColor Yellow
+    }
+}
+
 $erpExe = Join-Path $ErpDir 'AI.Erp.Site.exe'
+$erpProc = $null
 if (Test-Path $erpExe) {
-    Start-Process -FilePath $erpExe -ArgumentList "--urls=$ErpUrl" -WorkingDirectory $ErpDir `
+    $erpProc = Start-Process -FilePath $erpExe -ArgumentList "--urls=$ErpUrl" -WorkingDirectory $ErpDir -PassThru `
         -RedirectStandardOutput (Join-Path $LogDir 'erp.log') -RedirectStandardError (Join-Path $LogDir 'erp.err.log')
 } else { Warn "ERP exe not found at $erpExe" }
 
-# Wait for the ERP to come up.
+# Wait for the ERP to come up. The first run creates the whole database schema
+# and loads the seed data, so the window is generous. If the ERP process dies
+# while we wait, stop immediately and show the logs: waiting the full window for
+# a dead process only hides the real error.
 $up = $false
-for ($i=0; $i -lt 60; $i++) {
+for ($i=0; $i -lt 90; $i++) {
     try { Invoke-WebRequest "$ErpUrl/manifest.webmanifest" -UseBasicParsing -TimeoutSec 3 | Out-Null; $up = $true; break }
-    catch { Start-Sleep -Seconds 2 }
+    catch {
+        if ($erpProc -and $erpProc.HasExited) {
+            Warn "The ERP process stopped unexpectedly (exit code $($erpProc.ExitCode))."
+            Show-LogTail (Join-Path $LogDir 'erp.err.log') 40
+            Show-LogTail (Join-Path $LogDir 'erp.log') 40
+            throw "ERP crashed while starting. The reason is shown above and in $(Join-Path $LogDir 'erp.err.log') (a common cause is the database not being reachable)."
+        }
+        if (($i + 1) % 15 -eq 0) { Log "Still waiting for the ERP to come up ($(($i + 1) * 2)s) ..." }
+        Start-Sleep -Seconds 2
+    }
 }
 if ($up) {
     Log 'ERP is up.'
 } else {
-    throw "ERP failed to start within 120s. The reason is in $(Join-Path $LogDir 'erp.log') and $(Join-Path $LogDir 'erp.err.log') (a common cause is the database not being reachable)."
+    Show-LogTail (Join-Path $LogDir 'erp.err.log') 40
+    Show-LogTail (Join-Path $LogDir 'erp.log') 40
+    throw "ERP failed to start within 180s. The reason is shown above and in $(Join-Path $LogDir 'erp.log') and $(Join-Path $LogDir 'erp.err.log') (a common cause is the database not being reachable)."
 }
 
 $abExe = Join-Path $AbDir 'agent.exe'

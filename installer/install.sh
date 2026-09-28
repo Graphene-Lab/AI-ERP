@@ -297,7 +297,10 @@ download_extract() { # download_extract <repo> <tag> <asset> <dest>
 # ---------------------------------------------------------------------------
 write_erp_config() {
 	log "Writing ERP config.json ..."
-	local conn="Server=localhost;Port=5432;User Id=${DB_USER};Password=${DB_PASSWORD};Database=${DB_NAME};Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
+	# 127.0.0.1 instead of localhost: the literal IPv4 address removes any
+	# dependency on how "localhost" resolves (IPv6 first on some systems) and
+	# matches the address the installer itself polls.
+	local conn="Server=127.0.0.1;Port=5432;User Id=${DB_USER};Password=${DB_PASSWORD};Database=${DB_NAME};Pooling=true;MinPoolSize=1;MaxPoolSize=100;CommandTimeout=120;Timeout=120;KeepAlive=120;"
 	# Reuse the encryption and JWT keys from an existing config.json: regenerating
 	# them on a re-run would make data encrypted by the previous install unreadable.
 	local jwtkey enckey
@@ -424,13 +427,17 @@ configure_agentbridge() {
 start_services_linux() {
 	log "Starting ERP and AgentBridge ..."
 	mkdir -p "$LOG_DIR"
+	# Stop instances left running by a previous setup attempt: a second instance
+	# would fight the first one for the ERP port, leaving both unusable. Only
+	# processes running from our own install root are touched.
+	kill_stale_processes
 	if [ -x "$ERP_DIR/AI.Erp.Site" ]; then
 		( cd "$ERP_DIR" && setsid ./AI.Erp.Site --urls "$ERP_URL" >"$LOG_DIR/erp.log" 2>&1 & echo $! > "$INSTALL_ROOT/erp.pid" )
 	else
 		( cd "$ERP_DIR" && setsid dotnet AI.Erp.Site.dll --urls "$ERP_URL" >"$LOG_DIR/erp.log" 2>&1 & echo $! > "$INSTALL_ROOT/erp.pid" )
 	fi
 	log "ERP started (pid $(cat "$INSTALL_ROOT/erp.pid")). Waiting for first-run setup..."
-	wait_for_erp || die "ERP failed to start. The reason is in $LOG_DIR/erp.log (a common cause is the database not being reachable)."
+	wait_for_erp || die "ERP failed to start. The reason is shown above and in $LOG_DIR/erp.log (a common cause is the database not being reachable)."
 	if [ -x "$AB_DIR/agent" ] || [ -f "$AB_DIR/agent.dll" ]; then
 		local abexe="$AB_DIR/agent"
 		[ -x "$abexe" ] || abexe="dotnet $AB_DIR/agent.dll"
@@ -440,13 +447,57 @@ start_services_linux() {
 	fi
 }
 
+kill_stale_processes() {
+	local pid
+	for pid in $(cat "$INSTALL_ROOT/erp.pid" "$INSTALL_ROOT/ab.pid" 2>/dev/null); do
+		if kill -0 "$pid" 2>/dev/null; then
+			log "Stopping ERP/AgentBridge instance left running from a previous setup (pid $pid) ..."
+			kill "$pid" 2>/dev/null
+		fi
+	done
+	# Also catch instances whose pid file was lost. The ERP is launched as
+	# "./AI.Erp.Site" (relative argv0), so match the binary name; AgentBridge
+	# is launched by full path.
+	pkill -f "AI\.Erp\.Site" 2>/dev/null
+	pkill -f "$AB_DIR/agent" 2>/dev/null
+	sleep 2
+}
+
+erp_alive() { # erp_alive <pid>: true if the ERP is still running. The pid file
+	# can point at setsid rather than the ERP itself, so also look for the ERP by
+	# its binary name; a dead pid alone must not fake an early crash.
+	local pid="$1"
+	if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then return 0; fi
+	pgrep -f "AI\.Erp\.Site" >/dev/null 2>&1
+}
+
 wait_for_erp() {
-	local i
-	for i in $(seq 1 60); do
+	local i erp_pid
+	erp_pid="$(cat "$INSTALL_ROOT/erp.pid" 2>/dev/null || echo '')"
+	# The first run creates the whole database schema and loads the seed data, so
+	# the window is generous. If the ERP process dies while we wait, stop
+	# immediately and show the log: waiting the full window for a dead process
+	# only hides the real error.
+	for i in $(seq 1 90); do
 		if curl -fs "$ERP_URL/manifest.webmanifest" >/dev/null 2>&1; then log "ERP is up."; return 0; fi
+		if ! erp_alive "$erp_pid"; then
+			warn "The ERP process stopped unexpectedly."
+			if [ -s "$LOG_DIR/erp.log" ]; then
+				echo "--- last lines of $LOG_DIR/erp.log ---"
+				tail -n 40 "$LOG_DIR/erp.log"
+				echo '--- end ---'
+			fi
+			return 1
+		fi
+		if [ $((i % 15)) -eq 0 ]; then log "Still waiting for the ERP to come up ($((i * 2))s) ..."; fi
 		sleep 2
 	done
-	warn "ERP did not respond within 120s."
+	warn "ERP did not respond within 180s."
+	if [ -s "$LOG_DIR/erp.log" ]; then
+		echo "--- last lines of $LOG_DIR/erp.log ---"
+		tail -n 40 "$LOG_DIR/erp.log"
+		echo '--- end ---'
+	fi
 	return 1
 }
 
