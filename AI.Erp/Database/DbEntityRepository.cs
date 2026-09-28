@@ -144,9 +144,11 @@ namespace AI.Erp.Database
 					catch (Exception)
 					{
 						con.RollbackTransaction();
+						// Rethrow so the real database error reaches the caller instead of
+						// being hidden behind a bare "false" return.
+						throw;
 					}
 				}
-				return false;
 			}
 			finally
 			{

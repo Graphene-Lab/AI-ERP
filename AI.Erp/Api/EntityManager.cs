@@ -502,7 +502,7 @@ namespace AI.Erp.Api
 				if (ErpSettings.DevelopmentMode)
 					response.Message = e.Message + e.StackTrace;
 				else
-					response.Message = "The entity was not created. An internal error occurred!";
+					response.Message = "The entity was not created. " + e.Message;
 
 				return response;
 			}
@@ -1025,7 +1025,7 @@ namespace AI.Erp.Api
 				if (ErpSettings.DevelopmentMode)
 					response.Message = e.Message + e.StackTrace;
 				else
-					response.Message = "The field was not created. An internal error occurred!";
+					response.Message = "The field was not created. " + e.Message;
 
 				return response;
 			}

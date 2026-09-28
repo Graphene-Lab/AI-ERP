@@ -24,14 +24,22 @@ namespace AI.Erp
 
 			using (var connection = DbContext.Current.CreateConnection())
 			{
-				//setup necessary extensions
-				DbRepository.CreatePostgresqlExtensions();
-				//setup casts
-				DbRepository.CreatePostgresqlCasts();
-
+				// Serialize the whole first-run bootstrap (extensions, casts, schema and system
+				// entities) across processes: without this, two ERP instances (an orphan left by
+				// a previous attempt plus a new one) race on the same catalog rows and one crashes
+				// with a misleading "Entity with such Id does not exist!". A session-level lock is
+				// used because the extensions and casts run outside the transaction.
+				connection.AcquireSessionAdvisoryLockAndWait("ai_erp_initialize");
+				bool transactionStarted = false;
 				try
 				{
+					//setup necessary extensions
+					DbRepository.CreatePostgresqlExtensions();
+					//setup casts
+					DbRepository.CreatePostgresqlCasts();
+
 					connection.BeginTransaction();
+					transactionStarted = true;
 
 					CheckCreateSystemTables();
 
@@ -52,10 +60,19 @@ namespace AI.Erp
 					{
 						systemSettings.Version = 1;
 
+						// The whole block commits atomically, so the user entity is present only
+						// after a complete previous run. Detecting it here makes re-runs safe:
+						// an already-created system is skipped instead of crashing on duplicates.
+						Entity existingUserEntity = entMan.ReadEntity("user").Object;
+						if (existingUserEntity != null && existingUserEntity.Id != SystemIds.UserEntityId)
+							throw new Exception($"Cannot initialize the ERP: a 'user' entity already exists with a different id ({existingUserEntity.Id}). This database was created by another system and cannot be reused.");
+						bool firstRun = existingUserEntity == null;
+
 						List<Guid> allowedRoles = new List<Guid>();
 						allowedRoles.Add(SystemIds.AdministratorRoleId);
 
 						#region << create user entity >>
+						if (firstRun)
 						{
 
 							var systemItemIdDictionary = new Dictionary<string, Guid>();
@@ -82,6 +99,8 @@ namespace AI.Erp
 							userEntity.RecordPermissions.CanUpdate.Add(SystemIds.AdministratorRoleId);
 							userEntity.RecordPermissions.CanDelete.Add(SystemIds.AdministratorRoleId);
 							var response = entMan.CreateEntity(userEntity, systemItemIdDictionary);
+							if (!response.Success)
+								throw new Exception("CREATE USER ENTITY: " + response.Message);
 
 							#region <--- created_on --->
 							{
@@ -343,6 +362,7 @@ namespace AI.Erp
 
 						#region << create role entity >>
 
+						if (firstRun)
 						{
 							var systemItemIdDictionary = new Dictionary<string, Guid>();
 							systemItemIdDictionary["id"] = new Guid("0c5679f4-a290-4923-ad2b-d304cbc79937");
@@ -368,6 +388,8 @@ namespace AI.Erp
 							roleEntity.RecordPermissions.CanUpdate.Add(SystemIds.AdministratorRoleId);
 							roleEntity.RecordPermissions.CanDelete.Add(SystemIds.AdministratorRoleId);
 							var response = entMan.CreateEntity(roleEntity, systemItemIdDictionary);
+							if (!response.Success)
+								throw new Exception("CREATE ROLE ENTITY: " + response.Message);
 
 							InputTextField nameRoleField = new InputTextField();
 
@@ -419,6 +441,7 @@ namespace AI.Erp
 						#endregion
 
 						#region << create user - role relation >>
+						if (firstRun)
 						{
 							var userEntity = entMan.ReadEntity(SystemIds.UserEntityId).Object;
 							var roleEntity = entMan.ReadEntity(SystemIds.RoleEntityId).Object;
@@ -443,6 +466,7 @@ namespace AI.Erp
 
 						#region << create system records >>
 
+						if (firstRun)
 						{
 							EntityRecord user = new EntityRecord();
 							user["id"] = SystemIds.SystemUserId;
@@ -529,6 +553,7 @@ namespace AI.Erp
 						#endregion
 
 						#region << create user_file entity >>
+						if (firstRun)
 						{
 
 							#region << ***Create entity*** Entity name: user_file >>
@@ -877,12 +902,26 @@ namespace AI.Erp
 					new DbSystemSettingsRepository(DbContext.Current).Save(new DbSystemSettings { Id = systemSettings.Id, Version = systemSettings.Version });
 
 					connection.CommitTransaction();
+					transactionStarted = false;
 				}
 				catch (Exception ex)
 				{
-					var exception = ex;
-					connection.RollbackTransaction();
+					if (transactionStarted)
+						connection.RollbackTransaction();
 					throw;
+				}
+				finally
+				{
+					try
+					{
+						connection.ReleaseSessionAdvisoryLock("ai_erp_initialize");
+					}
+					catch (Exception)
+					{
+						// A broken connection cannot run the unlock, but closing it releases
+						// the session lock anyway. Never let a failed unlock mask the original
+						// startup error that is about to propagate.
+					}
 				}
 
 			}

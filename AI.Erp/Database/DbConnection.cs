@@ -87,6 +87,46 @@ namespace AI.Erp.Database
 
 		public bool AcquireAdvisoryLock(string key)
 		{
+			return AcquireAdvisoryLock(ComputeAdvisoryLockKey(key));
+		}
+
+		/// <summary>
+		/// Blocks until the advisory lock is granted, then holds it until the current
+		/// transaction ends. Used to serialize first-run initialization across
+		/// concurrent ERP processes so two instances never create the same tables
+		/// at the same time.
+		/// </summary>
+		public void AcquireAdvisoryLockAndWait(string key)
+		{
+			NpgsqlCommand command = CreateCommand("SELECT pg_advisory_xact_lock(@key);");
+			command.Parameters.Add(new NpgsqlParameter("@key", ComputeAdvisoryLockKey(key)));
+			command.ExecuteNonQuery();
+		}
+
+		/// <summary>
+		/// Blocks until a session-level advisory lock is granted. Unlike the
+		/// transaction-level lock it survives commit/rollback, so it can wrap work
+		/// that runs outside a transaction (extensions, casts) together with the
+		/// initialization transaction. Must be paired with
+		/// <see cref="ReleaseSessionAdvisoryLock"/>; closing the connection also
+		/// releases it.
+		/// </summary>
+		public void AcquireSessionAdvisoryLockAndWait(string key)
+		{
+			NpgsqlCommand command = CreateCommand("SELECT pg_advisory_lock(@key);");
+			command.Parameters.Add(new NpgsqlParameter("@key", ComputeAdvisoryLockKey(key)));
+			command.ExecuteNonQuery();
+		}
+
+		public void ReleaseSessionAdvisoryLock(string key)
+		{
+			NpgsqlCommand command = CreateCommand("SELECT pg_advisory_unlock(@key);");
+			command.Parameters.Add(new NpgsqlParameter("@key", ComputeAdvisoryLockKey(key)));
+			command.ExecuteNonQuery();
+		}
+
+		private static Int64 ComputeAdvisoryLockKey(string key)
+		{
 			Int64 hashCode = 0;
 			if (!string.IsNullOrEmpty(key))
 			{
@@ -105,8 +145,8 @@ namespace AI.Erp.Database
 				Int64 hashCodeEnd = BitConverter.ToInt64(hashText, 24);
 				hashCode = hashCodeStart ^ hashCodeMedium ^ hashCodeEnd;
 			}
-			
-			return AcquireAdvisoryLock(hashCode);
+
+			return hashCode;
 		}
 
 		/// <summary>
