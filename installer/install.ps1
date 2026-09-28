@@ -8,7 +8,7 @@ $ProgressPreference = 'SilentlyContinue'
 $ErpRepo   = 'Graphene-Lab/AI-ERP'
 $AbRepo    = 'Graphene-Lab/AgentBridge'
 $ToolRepo  = 'Graphene-Lab/ErpTool'
-$ErpTag    = if ($env:ERP_TAG)  { $env:ERP_TAG }  else { 'v1.26.09.25' }
+$ErpTag    = if ($env:ERP_TAG)  { $env:ERP_TAG }  else { 'v1.26.09.29' }
 $AbTag     = if ($env:AB_TAG)   { $env:AB_TAG }   else { 'v1.26.09.22' }
 $ToolTag   = if ($env:TOOL_TAG) { $env:TOOL_TAG } else { 'v1.26.09.11' }
 
