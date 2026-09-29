@@ -73,6 +73,22 @@ for an email and a password you never set, use:
 The same credentials are printed at the end of the install. Change this password the first
 time you log in.
 
+## "ERP failed to start within ... seconds"
+
+This message means the installer launched the ERP but the ERP did not answer on its port
+(`http://127.0.0.1:5080`) before the wait ended. The current installer waits up to three
+minutes and, when it gives up, prints the last lines of the ERP log directly in the window,
+so the real reason is visible without opening any file. The most common reasons are that the
+database is not reachable from the ERP, or that the ERP crashed while creating its tables on
+the very first run.
+
+If you saw this message, just run the installer again. It re-checks and repairs the database
+connection on its own and never wipes your data. On a fresh machine the first run only takes
+a few seconds, so a timeout almost always points at the database, not at the ERP being slow.
+If it still fails after a re-run, read the log lines the installer prints: they name the exact
+cause. Older installers waited only two minutes and did not show those lines, so re-running
+the current one is the fix for most reports of this error.
+
 ## "server closed the connection unexpectedly" during "Checking database access"
 
 This means the PostgreSQL server on port 5432 dropped or refused the connection in a way
