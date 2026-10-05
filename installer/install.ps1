@@ -41,6 +41,12 @@ function Ask($label, $default='') {
     $v = Read-Line $p
     if ([string]::IsNullOrWhiteSpace($v)) { return $default } else { return $v }
 }
+# Yes/answer parser for the optional prompts. Anything that is not an explicit "no"
+# is a yes, so pressing Enter keeps the recommended default.
+function Test-Yes($value) {
+    if ([string]::IsNullOrWhiteSpace($value)) { return $true }
+    return ($value.Trim().ToLowerInvariant() -in @('y','yes','s','si','1','true'))
+}
 function New-RandomHex($bytes) {
     $b = New-Object byte[] $bytes
     [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
@@ -108,6 +114,13 @@ if ($Provider -eq 'custom') {
 }
 $KeyPlain = Read-Line "API key for ${Provider}:"
 if ([string]::IsNullOrWhiteSpace($KeyPlain)) { throw 'An API key is required for the assistant.' }
+
+Write-Host ''
+Log 'Quick start'
+Write-Host 'The quick-start icon opens the assistant chat window and the ERP window together:'
+Write-Host 'you type the order in the chat, you see the result in the ERP.'
+$QuickStart = if ($env:QUICK_START) { Test-Yes $env:QUICK_START }
+              else { Test-Yes (Ask 'Put the quick-start icon on the Desktop and in the Start Menu' 'y') }
 
 # --- PostgreSQL -----------------------------------------------------------
 # The ERP logs into PostgreSQL with the password we write into config.json, so a
@@ -474,6 +487,27 @@ if (Test-Path $toolSrc) {
     Log "ErpTool plugin installed at $toolDst"
 }
 
+# Turn the ERP tool ON for the assistant from the first start.
+# Installing the plugin only makes it *available*: the assistant works with the tool
+# set saved in PersistentData\toolset.json, and the built-in default set is
+# File/Web/Git only. Without this file the agent would not see the ERP at all until
+# the user picked the tool by hand from the /tools menu.
+# The list below is the default set plus the ERP tool, written the same way the
+# assistant's own /tools menu writes it, so the menu shows it as the active choice.
+# If the plugin is ever removed, the assistant drops the name by itself and falls
+# back to the plain default set.
+$toolsetFile = Join-Path $pd 'toolset.json'
+if (Test-Path $toolsetFile) {
+    Log 'Keeping the existing assistant tool set (your own /tools choice is preserved).'
+} else {
+    $toolset = [ordered]@{
+        agent_set = 'default-agent'
+        tools     = @('FileTool', 'WebTool', 'GitTool', 'TaskSchedulerTool', 'ErpTool')
+    }
+    [System.IO.File]::WriteAllText($toolsetFile, ($toolset | ConvertTo-Json -Depth 4), $utf8NoBom)
+    Log 'ERP tool enabled by default: the assistant can work on the ERP right after the install.'
+}
+
 # --- Start services -------------------------------------------------------
 Log 'Starting ERP and AgentBridge ...'
 
@@ -526,7 +560,11 @@ if ($up) {
 $abExe = Join-Path $AbDir 'agent.exe'
 if (Test-Path $abExe) {
     $env:ERP_BASE_URL = $ErpUrl; $env:ERP_USER = $ErpAdminEmail; $env:ERP_PASSWORD = $ErpAdminPass
+    # --headless: this is the background service, the chat window is opened by the
+    # launcher. --Urls pins the port to $AbPort so the launcher polls the same
+    # address it started (a custom AB_PORT would otherwise leave the two apart).
     Start-Process -FilePath $abExe -WorkingDirectory $AbDir `
+        -ArgumentList @('--headless', '--Urls', "http://127.0.0.1:$AbPort") `
         -RedirectStandardOutput (Join-Path $LogDir 'agentbridge.log') -RedirectStandardError (Join-Path $LogDir 'agentbridge.err.log')
     Log 'AgentBridge started.'
 }
@@ -536,10 +574,13 @@ if (Test-Path $abExe) {
 # is not running (after a reboot, or if it was closed) that URL gives
 # ERR_CONNECTION_REFUSED. The launcher brings the ERP (and AgentBridge) up first,
 # then opens the app window, so the icon works every time it is clicked.
-Log 'Writing the launcher script ...'
+Log 'Writing the launcher scripts ...'
 $launcherPs1 = Join-Path $InstallRoot 'aierp-launch.ps1'
-$launcherTemplate = @'
-# AI ERP launcher. Ensures the ERP (and AgentBridge) are running, then opens the app.
+$tuiPs1 = Join-Path $InstallRoot 'aierp-agent-tui.ps1'
+
+# Both generated scripts share this prologue: paths, ports, the ERP credentials the
+# assistant's ERP tool reads, and the steps that bring the ERP up when it is down.
+$commonTemplate = @'
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 
@@ -561,7 +602,14 @@ function Test-Http($url) {
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
-# Bring the ERP up if it is not already listening.
+# The ERP account the assistant works as. The ERP tool also reads the same values
+# from PersistentData\erp.json; exporting them here keeps the running process
+# explicit and still works if that file is missing.
+$env:ERP_BASE_URL = $ErpUrl
+$env:ERP_USER     = $ErpAdminEmail
+$env:ERP_PASSWORD = $ErpAdminPass
+
+# Bring the ERP up if it is not already listening: the assistant cannot work without it.
 if (-not (Test-Http "$ErpUrl/manifest.webmanifest")) {
     $erpExe = Join-Path $ErpDir 'AI.Erp.Site.exe'
     if (Test-Path $erpExe) {
@@ -570,13 +618,38 @@ if (-not (Test-Http "$ErpUrl/manifest.webmanifest")) {
     }
     for ($i=0; $i -lt 90; $i++) { if (Test-Http "$ErpUrl/manifest.webmanifest") { break }; Start-Sleep -Seconds 2 }
 }
+'@
 
-# Bring AgentBridge up too (the assistant needs it). Best effort.
+# The chat window: runs the assistant's terminal UI in the console that hosts this
+# script, so the user has a real window to type prompts into.
+$tuiTemplate = $commonTemplate + @'
+
+$abExe = Join-Path $AbDir 'agent.exe'
+if (-not (Test-Path $abExe)) {
+    Write-Host "The assistant is not installed at $abExe." -ForegroundColor Red
+    Write-Host 'Run the AI ERP installer again to install it.'
+    exit 1
+}
+Write-Host 'AI ERP assistant - tell it what you need done in the ERP. /help lists the commands.' -ForegroundColor Cyan
+Write-Host ''
+# The chat UI hosts the assistant server in this same process. When another
+# instance already owns the port the UI attaches to it instead of failing.
+& $abExe --tui --Urls "http://127.0.0.1:$AbPort"
+exit $LASTEXITCODE
+'@
+
+# The icon target: brings everything up, opens the ERP window, then opens the chat
+# window on top of it. One click gives both halves of the flow: type the order in
+# the chat, see the result appear in the ERP.
+$launcherTemplate = $commonTemplate + @'
+
+# Bring the assistant server up too. Best effort: if this fails, the chat window
+# opened below hosts the server itself.
 if (-not (Test-Http "$AbUrl/health")) {
     $abExe = Join-Path $AbDir 'agent.exe'
     if (Test-Path $abExe) {
-        $env:ERP_BASE_URL = $ErpUrl; $env:ERP_USER = $ErpAdminEmail; $env:ERP_PASSWORD = $ErpAdminPass
         Start-Process -FilePath $abExe -WorkingDirectory $AbDir -WindowStyle Hidden `
+            -ArgumentList @('--headless', '--Urls', "http://127.0.0.1:$AbPort") `
             -RedirectStandardOutput (Join-Path $LogDir "agentbridge-$stamp.log") -RedirectStandardError (Join-Path $LogDir "agentbridge-$stamp.err.log")
     }
 }
@@ -590,10 +663,7 @@ foreach ($b in @(
     if (Test-Path $b) { $browser = $b; break }
 }
 
-if (Test-Http "$ErpUrl/manifest.webmanifest") {
-    if ($browser) { Start-Process $browser -ArgumentList "--app=$ErpUrl/?pwa=1" }
-    else { Start-Process $ErpUrl }
-} else {
+if (-not (Test-Http "$ErpUrl/manifest.webmanifest")) {
     try {
         Add-Type -AssemblyName System.Windows.Forms
         [System.Windows.Forms.MessageBox]::Show(
@@ -602,10 +672,46 @@ if (Test-Http "$ErpUrl/manifest.webmanifest") {
     } catch {
         Write-Host "AI ERP non riesce ad avviarsi. Controlla i log in: $LogDir"
     }
+    exit 1
 }
+
+# The ERP window first, so it is already there when the chat window takes focus.
+if ($browser) { Start-Process $browser -ArgumentList "--app=$ErpUrl/?pwa=1" }
+else { Start-Process $ErpUrl }
+
+# A chat window is already open when an agent process is running with --tui: do not
+# stack a second one on top of it if the icon is clicked again.
+function Test-AssistantChatOpen {
+    $running = @(Get-CimInstance Win32_Process -Filter "Name='agent.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine -match '--tui' })
+    return $running.Count -gt 0
+}
+
+function Open-AssistantChatWindow {
+    $tui = Join-Path $InstallRoot 'aierp-agent-tui.ps1'
+    if (-not (Test-Path $tui)) { return $false }
+    $ps = Join-Path $PSHOME 'powershell.exe'
+    $wt = Get-Command wt.exe -ErrorAction SilentlyContinue
+    if ($wt) {
+        # Windows Terminal, the default terminal on Windows 11: best rendering.
+        Start-Process -FilePath $wt.Source -WorkingDirectory $AbDir `
+            -ArgumentList "--title `"AI ERP - Assistant`" -d `"$AbDir`" `"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$tui`"" | Out-Null
+        return $true
+    }
+    # Classic console host: present on every Windows version.
+    Start-Process -FilePath $env:ComSpec -WorkingDirectory $AbDir -WindowStyle Normal `
+        -ArgumentList "/K `"`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$tui`"`"" | Out-Null
+    return $true
+}
+
+if (-not (Test-AssistantChatOpen)) { [void](Open-AssistantChatWindow) }
 '@
-$launcherContent = $launcherTemplate.Replace('{{INSTALL_ROOT}}', $InstallRoot).Replace('{{ERP_PORT}}', "$ErpPort").Replace('{{AB_PORT}}', "$AbPort")
-[System.IO.File]::WriteAllText($launcherPs1, $launcherContent, $utf8NoBom)
+
+function Render-LauncherScript($body) {
+    $body.Replace('{{INSTALL_ROOT}}', $InstallRoot).Replace('{{ERP_PORT}}', "$ErpPort").Replace('{{AB_PORT}}', "$AbPort")
+}
+[System.IO.File]::WriteAllText($launcherPs1, (Render-LauncherScript $launcherTemplate), $utf8NoBom)
+[System.IO.File]::WriteAllText($tuiPs1, (Render-LauncherScript $tuiTemplate), $utf8NoBom)
 
 # --- PWA launcher (Desktop + Start Menu) ----------------------------------
 Log 'Installing the ERP launcher (PWA app window) ...'
@@ -628,19 +734,26 @@ function Make-Shortcut($path) {
     $sc.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launcherPs1`""
     if (Test-Path $icon) { $sc.IconLocation = "$icon,0" }
     $sc.WorkingDirectory = $ErpDir
-    $sc.Description = "$Company - AI ERP"
+    $sc.Description = "$Company - AI ERP and the AI assistant"
     $sc.Save()
 }
 $desktop = [Environment]::GetFolderPath('Desktop')
 $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'AI ERP'
-New-Item -ItemType Directory -Force -Path $startMenu | Out-Null
-Make-Shortcut (Join-Path $desktop 'AI ERP.lnk')
-Make-Shortcut (Join-Path $startMenu 'AI ERP.lnk')
-Log 'Launcher installed on Desktop and Start Menu.'
+if ($QuickStart) {
+    New-Item -ItemType Directory -Force -Path $startMenu | Out-Null
+    Make-Shortcut (Join-Path $desktop 'AI ERP.lnk')
+    Make-Shortcut (Join-Path $startMenu 'AI ERP.lnk')
+    Log 'Quick-start icon installed on the Desktop and in the Start Menu.'
+} else {
+    Log 'Quick-start icons skipped, as you asked. To start everything later run:'
+    Write-Host "    powershell -NoProfile -ExecutionPolicy Bypass -File `"$launcherPs1`""
+}
 
-# Open the ERP.
-if ($browser) { Start-Process $browser -ArgumentList "--app=$ErpUrl/?pwa=1" }
-else { Start-Process $ErpUrl }
+# Open both windows now, exactly as the icon does: the ERP to look at, and the
+# assistant chat window to type into. Started as a separate process so the
+# installer itself is not affected by what the launcher returns.
+Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') `
+    -ArgumentList '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', "`"$launcherPs1`""
 
 Write-Host ''
 Log 'Done.'
@@ -653,9 +766,17 @@ Write-Host "    email:    $ErpAdminEmail"
 Write-Host "    password: $ErpAdminPass"
 Write-Host '    >>> Change this password immediately after the first login. <<<'
 Write-Host ''
-Write-Host "  To finish the PWA install, open the ERP in Edge/Chrome and click the"
-Write-Host "  'Install' icon in the address bar (the app icon is already on your desktop)."
+Write-Host "  Two windows are opening now:"
+Write-Host "    - the AI ERP window, where you see your data;"
+Write-Host "    - the AI assistant window, where you type what you need done."
+Write-Host "  Tell the assistant something like 'add a customer named Rossi' and look at"
+Write-Host "  the ERP window to see it happen. Type /help in the assistant for its commands."
 Write-Host ''
-Write-Host "  The 'AI ERP' icon on the Desktop also starts the services. If the ERP is"
-Write-Host "  not running (after a reboot, for example), just double-click the icon and it"
-Write-Host "  will bring it back up before opening the window."
+if ($QuickStart) {
+    Write-Host "  Next time, double-click the 'AI ERP' icon (on the Desktop, or in the Start"
+    Write-Host "  Menu). It opens both windows and starts anything that is not already running,"
+    Write-Host "  so it also works after a restart of the computer."
+    Write-Host ''
+}
+Write-Host "  To finish the PWA install, open the ERP in Edge/Chrome and click the"
+Write-Host "  'Install' icon in the address bar."

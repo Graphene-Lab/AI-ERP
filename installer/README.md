@@ -39,16 +39,44 @@ You can read exactly what the installer does before running it in
 from this project's GitHub releases and from the EDB site, writes its configuration under your
 local app data folder, and starts the services.
 
+## What the quick-start icon opens
+
+During the install you are asked whether you want a quick-start icon. If you say yes (the
+default), the installer puts an **AI ERP** icon on the Desktop and in the Start Menu, so you
+can start everything by double-click, or by pressing the Windows key and typing "AI ERP".
+
+That icon opens the two windows you need together:
+
+- the **AI ERP** window, where you can see your data;
+- the **AI assistant** window, a chat where you type what you want done — for example "add a
+  customer named Rossi" — and the agent does it in the ERP while you watch the other window.
+
+The assistant comes with the ERP tool already switched on, so it can work on the ERP from the
+first start: there is nothing to configure and nothing to enable by hand. If you prefer a
+different set of tools later, use the `/tools` command in the assistant chat.
+
+If you answer no to the quick-start question, no icon is created. You can still start the same
+two windows from a terminal:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\aierp\aierp-launch.ps1"
+```
+
+On Linux the same file is `~/.aierp/aierp-launch.sh`. To open only the assistant chat, run
+`~/.aierp/aierp-agent-tui.sh` from any terminal window.
+
 ## The desktop icon and "connection refused"
 
-The installer puts an **AI ERP** icon on the Desktop (and in the Start Menu). That icon is a
-small launcher: when you double-click it, it first checks whether the ERP is running and, if it
-is not, starts it (and the assistant) before opening the app window. This matters because the
-ERP is a local web server: if you open the address `http://127.0.0.1:5080` while the server is
-not running, the browser shows "This site can't be reached / ERR_CONNECTION_REFUSED". That is
-not a proxy or firewall problem — the program simply was not running. After a computer restart,
-or if the program was closed, just double-click the **AI ERP** icon and it brings everything
-back up.
+The icon is a launcher, not just a link. When you double-click it, it first checks whether the
+ERP is running and, if it is not, starts it (and the assistant) before opening the windows.
+This matters because the ERP is a local web server: if you open the address
+`http://127.0.0.1:5080` while the server is not running, the browser shows "This site can't be
+reached / ERR_CONNECTION_REFUSED". That is not a proxy or firewall problem — the program simply
+was not running. After a computer restart, or if the program was closed, just double-click the
+**AI ERP** icon and it brings everything back up.
+
+Clicking the icon twice does not open two assistant windows: if one is already open, the icon
+only brings the ERP window forward.
 
 The launcher writes its logs under the install folder (`%LOCALAPPDATA%\aierp\logs` on Windows,
 `~/.aierp/logs` on Linux). If the icon ever shows that the ERP cannot start, look there.

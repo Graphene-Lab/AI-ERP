@@ -58,8 +58,29 @@ running.
 
 The **AI ERP** icon that the installer puts on the Desktop (and in the Start Menu) is a launcher,
 not just a link. When you double-click it, it checks whether the ERP is running and, if it is not,
-starts the ERP and the assistant before opening the app window. So after a restart you do not need
+starts the ERP and the assistant before opening the windows. So after a restart you do not need
 to run the installer again — just double-click the icon.
+
+## Using the assistant after the install
+
+The quick-start icon opens two windows together:
+
+- the **AI ERP** window, where your data lives;
+- the **AI assistant** window, a chat where you say what you want done.
+
+Type a plain-language request in the chat — "add a customer named Rossi", "show the receivables
+aging" — and the agent carries it out in the ERP while you watch the other window. Type `/help`
+in the chat for the list of commands.
+
+The installer already switches the ERP tool on for the assistant, so the agent can work on the
+ERP from the very first start. Nothing has to be enabled by hand. To change which tools the
+assistant may use, run `/tools` in the chat; the choice is remembered.
+
+If you declined the quick-start icon during the install, start the same two windows from a
+terminal with `~/.aierp/aierp-launch.sh` (Linux) or
+`powershell -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\aierp\aierp-launch.ps1"`
+(Windows). To open only the assistant chat, run `~/.aierp/aierp-agent-tui.sh` from any terminal
+window.
 
 The launcher writes logs under the install folder (`%LOCALAPPDATA%\aierp\logs` on Windows,
 `~/.aierp/logs` on Linux). If the icon reports that the ERP cannot start, check those logs. To

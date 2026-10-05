@@ -28,6 +28,7 @@ TOOL_REPO="Graphene-Lab/ErpTool"
 ERP_PORT="${ERP_PORT:-5080}"
 AB_PORT="${AB_PORT:-5290}"
 ERP_URL="http://127.0.0.1:${ERP_PORT}"
+AB_URL="http://127.0.0.1:${AB_PORT}"
 
 DB_NAME="aierp"
 DB_USER="aierp"
@@ -73,6 +74,15 @@ secret() { # secret <var> <prompt>
 gen_password() { openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 gen_key()      { openssl rand -hex 48 2>/dev/null || head -c 96 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+# is_yes <answer>: anything that is not an explicit "no" counts as yes, so pressing
+# Enter keeps the recommended default.
+is_yes() {
+	case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+		n|no|0|false) return 1 ;;
+		*) return 0 ;;
+	esac
+}
 
 have_sudo() {
 	if [ "$(id -u)" -eq 0 ]; then return 0; fi
@@ -158,6 +168,16 @@ run_wizard() {
 	fi
 	secret PROVIDER_KEY "API key for $PROVIDER"
 	[ -n "$PROVIDER_KEY" ] || die "An API key is required for the assistant."
+
+	echo
+	log "Quick start"
+	echo "The quick-start icon opens the assistant chat window and the ERP window together:"
+	echo "you type the order in the chat, you see the result in the ERP."
+	# An existing QUICK_START in the environment (automation) is kept as the answer.
+	if [ -z "${QUICK_START:-}" ]; then
+		ask QUICK_START "Put the quick-start icon on the Desktop and in the applications menu" "y"
+	fi
+	if is_yes "$QUICK_START"; then QUICK_START=yes; else QUICK_START=no; fi
 }
 
 # ---------------------------------------------------------------------------
@@ -419,6 +439,26 @@ configure_agentbridge() {
 		cp -rf "$tool_src"/. "$AB_DIR/Tools/ErpTool"/
 		log "ErpTool plugin installed at $AB_DIR/Tools/ErpTool"
 	fi
+
+	# Turn the ERP tool ON for the assistant from the first start.
+	# Installing the plugin only makes it available: the assistant works with the
+	# tool set saved in PersistentData/toolset.json, and the built-in default set is
+	# File/Web/Git only. Without this file the agent would not see the ERP at all
+	# until the user picked the tool by hand from the /tools menu.
+	# The list below is the default set plus the ERP tool, written the same way the
+	# assistant's own /tools menu writes it, so the menu shows it as the active
+	# choice. If the plugin is ever removed, the assistant drops the name by itself
+	# and falls back to the plain default set.
+	local toolset="$pd/toolset.json"
+	if [ -f "$toolset" ]; then
+		log "Keeping the existing assistant tool set (your own /tools choice is preserved)."
+	elif need_cmd jq; then
+		jq -n '{agent_set:"default-agent",tools:["FileTool","WebTool","GitTool","TaskSchedulerTool","ErpTool"]}' > "$toolset"
+		log "ERP tool enabled by default: the assistant can work on the ERP right after the install."
+	else
+		printf '{"agent_set":"default-agent","tools":["FileTool","WebTool","GitTool","TaskSchedulerTool","ErpTool"]}\n' > "$toolset"
+		log "ERP tool enabled by default: the assistant can work on the ERP right after the install."
+	fi
 }
 
 # ---------------------------------------------------------------------------
@@ -441,8 +481,12 @@ start_services_linux() {
 	if [ -x "$AB_DIR/agent" ] || [ -f "$AB_DIR/agent.dll" ]; then
 		local abexe="$AB_DIR/agent"
 		[ -x "$abexe" ] || abexe="dotnet $AB_DIR/agent.dll"
+		# --headless: this is the background service, the chat window is opened by
+		# the launcher. --Urls pins the port to $AB_PORT so the launcher polls the
+		# same address that was started (a custom AB_PORT would otherwise leave the
+		# two apart and the launcher would wait for a server that is never there).
 		( cd "$AB_DIR" && ERP_BASE_URL="$ERP_URL" ERP_USER="$ERP_ADMIN_EMAIL" ERP_PASSWORD="$ERP_ADMIN_PASSWORD" \
-			setsid $abexe >"$LOG_DIR/agentbridge.log" 2>&1 & echo $! > "$INSTALL_ROOT/ab.pid" )
+			setsid $abexe --headless --Urls "$AB_URL" >"$LOG_DIR/agentbridge.log" 2>&1 & echo $! > "$INSTALL_ROOT/ab.pid" )
 		log "AgentBridge started (pid $(cat "$INSTALL_ROOT/ab.pid" 2>/dev/null || echo '?'))."
 	fi
 }
@@ -502,18 +546,26 @@ wait_for_erp() {
 }
 
 # ---------------------------------------------------------------------------
-# Launcher script (Linux)
+# Launcher scripts (Linux)
 # ---------------------------------------------------------------------------
 # The desktop icon must not just open a browser to a URL: if the ERP is not
 # running (after a reboot, or if it was closed) that URL gives a connection
-# refused error. The launcher brings the ERP (and AgentBridge) up first, then
-# opens the app window, so the icon works every time it is clicked.
+# refused error. The launcher brings the ERP and the assistant up first, opens the
+# ERP window, then opens the assistant chat window on top of it, so one click
+# gives both halves of the flow: type the order in the chat, see the result in the
+# ERP. Three files are written under the install root:
+#   aierp-services.sh    shared helpers, sourced by the other two
+#   aierp-agent-tui.sh   the assistant chat window (meant to run in a terminal)
+#   aierp-launch.sh      the icon target (ERP window + chat window)
 write_launcher_linux() {
-	log "Writing the launcher script ..."
+	log "Writing the launcher scripts ..."
+	local services="$INSTALL_ROOT/aierp-services.sh"
+	local tui="$INSTALL_ROOT/aierp-agent-tui.sh"
 	local launcher="$INSTALL_ROOT/aierp-launch.sh"
-	cat > "$launcher" <<EOF
+
+	cat > "$services" <<EOF
 #!/usr/bin/env bash
-# AI ERP launcher. Ensures the ERP (and AgentBridge) are running, then opens the app.
+# AI ERP shared launcher helpers. Sourced by aierp-launch.sh and aierp-agent-tui.sh.
 ERP_PORT="${ERP_PORT}"
 AB_PORT="${AB_PORT}"
 INSTALL_ROOT="${INSTALL_ROOT}"
@@ -524,34 +576,133 @@ ERP_URL="http://127.0.0.1:\${ERP_PORT}"
 AB_URL="http://127.0.0.1:\${AB_PORT}"
 ERP_ADMIN_EMAIL="${ERP_ADMIN_EMAIL}"
 ERP_ADMIN_PASSWORD="${ERP_ADMIN_PASSWORD}"
-mkdir -p "\$LOG_DIR"
+
 up() { curl -fs "\$1" >/dev/null 2>&1; }
-if ! up "\$ERP_URL/manifest.webmanifest"; then
+
+# The ERP account the assistant works as. The ERP tool also reads the same values
+# from PersistentData/erp.json; exporting them here keeps the running process
+# explicit and still works if that file is missing.
+export ERP_BASE_URL="\$ERP_URL"
+export ERP_USER="\$ERP_ADMIN_EMAIL"
+export ERP_PASSWORD="\$ERP_ADMIN_PASSWORD"
+
+# agent_bin: prints the command that runs the assistant, or fails when the
+# assistant is not installed.
+agent_bin() {
+	if [ -x "\$AB_DIR/agent" ]; then printf '%s' "\$AB_DIR/agent"
+	elif [ -f "\$AB_DIR/agent.dll" ]; then printf '%s' "dotnet \$AB_DIR/agent.dll"
+	else return 1; fi
+}
+
+# ensure_erp: start the ERP when it is not listening, and wait until it answers.
+ensure_erp() {
+	mkdir -p "\$LOG_DIR"
+	up "\$ERP_URL/manifest.webmanifest" && return 0
+	local stamp i
 	stamp="\$(date +%Y%m%d-%H%M%S)"
 	if [ -x "\$ERP_DIR/AI.Erp.Site" ]; then
 		( cd "\$ERP_DIR" && setsid ./AI.Erp.Site --urls "\$ERP_URL" >"\$LOG_DIR/erp-\$stamp.log" 2>&1 & )
 	else
 		( cd "\$ERP_DIR" && setsid dotnet AI.Erp.Site.dll --urls "\$ERP_URL" >"\$LOG_DIR/erp-\$stamp.log" 2>&1 & )
 	fi
-	for i in \$(seq 1 90); do up "\$ERP_URL/manifest.webmanifest" && break; sleep 2; done
-fi
-if ! up "\$AB_URL/health"; then
+	for i in \$(seq 1 90); do up "\$ERP_URL/manifest.webmanifest" && return 0; sleep 2; done
+	return 1
+}
+
+# ensure_agent_server: start the assistant server when it is not listening.
+# Best effort: the chat window hosts the server itself if this is not possible.
+ensure_agent_server() {
+	mkdir -p "\$LOG_DIR"
+	up "\$AB_URL/health" && return 0
+	local bin stamp
+	bin="\$(agent_bin)" || return 1
 	stamp="\$(date +%Y%m%d-%H%M%S)"
-	if [ -x "\$AB_DIR/agent" ]; then
-		( cd "\$AB_DIR" && ERP_BASE_URL="\$ERP_URL" ERP_USER="\$ERP_ADMIN_EMAIL" ERP_PASSWORD="\$ERP_ADMIN_PASSWORD" setsid ./agent >"\$LOG_DIR/agentbridge-\$stamp.log" 2>&1 & )
-	elif [ -f "\$AB_DIR/agent.dll" ]; then
-		( cd "\$AB_DIR" && ERP_BASE_URL="\$ERP_URL" ERP_USER="\$ERP_ADMIN_EMAIL" ERP_PASSWORD="\$ERP_ADMIN_PASSWORD" setsid dotnet agent.dll >"\$LOG_DIR/agentbridge-\$stamp.log" 2>&1 & )
-	fi
+	( cd "\$AB_DIR" && setsid \$bin --headless --Urls "\$AB_URL" >"\$LOG_DIR/agentbridge-\$stamp.log" 2>&1 & )
+	return 0
+}
+
+# open_terminal <title> <command>: run the command in a new terminal window, using
+# whichever terminal emulator this desktop provides. Fails when it offers none.
+open_terminal() {
+	local title="\$1" cmd="\$2" t
+	for t in x-terminal-emulator gnome-terminal konsole xfce4-terminal mate-terminal \\
+	         lxterminal terminator tilix deepin-terminal kitty alacritty xterm; do
+		command -v "\$t" >/dev/null 2>&1 || continue
+		case "\$t" in
+			gnome-terminal) "\$t" --title "\$title" -- bash -lc "\$cmd" >/dev/null 2>&1 & return 0 ;;
+			konsole)        "\$t" -p TabTitle="\$title" -e bash -lc "\$cmd" >/dev/null 2>&1 & return 0 ;;
+			xterm)          "\$t" -T "\$title" -e bash -lc "\$cmd" >/dev/null 2>&1 & return 0 ;;
+			kitty)          "\$t" --title "\$title" bash -lc "\$cmd" >/dev/null 2>&1 & return 0 ;;
+			alacritty)      "\$t" -t "\$title" -e bash -lc "\$cmd" >/dev/null 2>&1 & return 0 ;;
+			*)              "\$t" -e bash -lc "\$cmd" >/dev/null 2>&1 & return 0 ;;
+		esac
+	done
+	return 1
+}
+EOF
+	chmod +x "$services"
+
+	cat > "$tui" <<EOF
+#!/usr/bin/env bash
+# AI ERP assistant chat window.
+# Opens the assistant's terminal UI in the terminal that runs this script, so the
+# user has a real window to type prompts into. The ERP is started first when it is
+# not already running: the assistant cannot work without it.
+set -u
+. "${services}"
+
+if ! ensure_erp; then
+	echo "AI ERP non riesce ad avviarsi. Controlla i log in \$LOG_DIR" >&2
+	exit 1
 fi
+ensure_agent_server
+
+abbin="\$(agent_bin)" || {
+	echo "L'assistente non risulta installato in \$AB_DIR." >&2
+	echo "Esegui di nuovo l'installazione di AI ERP." >&2
+	exit 1
+}
+echo 'Assistente AI ERP - di cosa hai bisogno nel gestionale? /help elenca i comandi.'
+echo ''
+# The chat UI hosts the assistant server in this same process. When another
+# instance already owns the port, the UI attaches to it instead of failing.
+exec \$abbin --tui --Urls "\$AB_URL"
+EOF
+	chmod +x "$tui"
+
+	cat > "$launcher" <<EOF
+#!/usr/bin/env bash
+# AI ERP launcher (the desktop icon target).
+# Brings the ERP and the assistant up, opens the ERP window, then opens the
+# assistant chat window on top of it: type the order in the chat, see the result
+# appear in the ERP.
+set -u
+. "${services}"
+
+if ! ensure_erp; then
+	echo "AI ERP non riesce ad avviarsi. Controlla i log in \$LOG_DIR" >&2
+	exit 1
+fi
+# Best effort: if the server is not up yet, the chat window started below hosts it.
+ensure_agent_server
+
 browser=""
 for b in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge; do
 	if command -v "\$b" >/dev/null 2>&1; then browser="\$b"; break; fi
 done
-if up "\$ERP_URL/manifest.webmanifest"; then
-	if [ -n "\$browser" ]; then "\$browser" --app="\${ERP_URL}/?pwa=1" >/dev/null 2>&1 & else xdg-open "\$ERP_URL" >/dev/null 2>&1 & fi
+if [ -n "\$browser" ]; then
+	"\$browser" --app="\${ERP_URL}/?pwa=1" >/dev/null 2>&1 &
 else
-	echo "AI ERP non riesce ad avviarsi. Controlla i log in \$LOG_DIR" >&2
+	xdg-open "\$ERP_URL" >/dev/null 2>&1 &
 fi
+
+# A chat window is already open when an assistant process runs with --tui: clicking
+# the icon twice must not stack a second one over the first.
+if pgrep -f "\$AB_DIR/agent.*--tui" >/dev/null 2>&1 \\
+   || pgrep -f "agent.dll.*--tui" >/dev/null 2>&1; then
+	exit 0
+fi
+open_terminal "AI ERP - Assistant" "exec '${tui}'" || true
 EOF
 	chmod +x "$launcher"
 }
@@ -570,23 +721,31 @@ install_pwa_launcher_linux() {
 	[ -n "$browser" ] || warn "No Chrome/Chromium/Edge found; the PWA install prompt needs one."
 
 	local desktop_file="$HOME/.local/share/applications/aierp.desktop"
-	mkdir -p "$HOME/.local/share/applications"
-	# Run through the launcher so the icon also starts the services if they are down.
-	cat > "$desktop_file" <<EOF
+	if [ "$QUICK_START" = "yes" ]; then
+		mkdir -p "$HOME/.local/share/applications"
+		# Run through the launcher so the icon also starts the services if they are
+		# down, and opens the assistant chat window next to the ERP window.
+		cat > "$desktop_file" <<EOF
 [Desktop Entry]
 Type=Application
 Name=AI ERP
-Comment=${COMPANY_NAME} - AI ERP
+Comment=${COMPANY_NAME} - AI ERP and the AI assistant
 Exec=${launcher}
 Icon=${icon}
 Terminal=false
 Categories=Office;
 EOF
-	chmod +x "$desktop_file"
-	need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
-	local desk="$HOME/Desktop"
-	[ -d "$desk" ] && cp "$desktop_file" "$desk/aierp.desktop" && chmod +x "$desk/aierp.desktop" || true
-	log "Launcher installed. Opening the ERP app window..."
+		chmod +x "$desktop_file"
+		need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+		local desk="$HOME/Desktop"
+		[ -d "$desk" ] && cp "$desktop_file" "$desk/aierp.desktop" && chmod +x "$desk/aierp.desktop" || true
+		log "Quick-start icon installed on the Desktop and in the applications menu."
+	else
+		rm -f "$desktop_file" "$HOME/Desktop/aierp.desktop" 2>/dev/null || true
+		log "Quick-start icon skipped, as you asked. To start everything later run:"
+		echo "    ${launcher}"
+	fi
+	log "Opening the ERP window and the assistant chat window..."
 	"$launcher" >/dev/null 2>&1 &
 }
 
@@ -673,8 +832,20 @@ main() {
 	echo "    password: $ERP_ADMIN_PASSWORD"
 	echo "    >>> Change this password immediately after the first login. <<<"
 	echo
+	echo "  Two windows are opening now:"
+	echo "    - the AI ERP window, where you see your data;"
+	echo "    - the AI assistant window, where you type what you need done."
+	echo "  Tell the assistant something like 'add a customer named Rossi' and look at"
+	echo "  the ERP window to see it happen. Type /help in the assistant for its commands."
+	echo
+	if [ "$QUICK_START" = "yes" ]; then
+		echo "  Next time, click the 'AI ERP' icon (on the Desktop, or in the applications"
+		echo "  menu). It opens both windows and starts anything that is not already"
+		echo "  running, so it also works after a restart of the computer."
+		echo
+	fi
 	echo "  To finish the PWA install, open the ERP in Chrome/Edge and click the"
-	echo "  'Install' icon in the address bar (the app icon is already on your desktop)."
+	echo "  'Install' icon in the address bar."
 }
 
 main "$@"

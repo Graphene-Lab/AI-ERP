@@ -105,6 +105,11 @@ one-shot installer on the [releases page](https://github.com/Graphene-Lab/AI-ERP
 AgentBridge and the ErpTool plugin in one run. For manual and remote / multi-host setups, see
 the step-by-step guide in the wiki: [Install the ecosystem](https://github.com/Graphene-Lab/AI-ERP/wiki).
 
+After the install the end-user flow is three steps: install, click the **AI ERP** icon, and start
+typing. The icon opens the assistant chat and the ERP window together, and the ERP tool is already
+switched on, so the agent can work on the ERP immediately and you see each result in the ERP
+window as it happens.
+
 > On Windows, SmartScreen or Smart App Control may warn that `install.bat` "is not from a
 > trusted publisher". This is normal for any unsigned script downloaded from the web and does
 > not mean the file is unsafe. Click **More info** then **Run anyway**, or right-click the file,

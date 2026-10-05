@@ -69,6 +69,19 @@ The full method list is in the [ErpTool repository](https://github.com/Graphene-
 
 3. **Add the tool to AgentBridge.** Load ErpTool as a tool plugin in AgentBridge. The agent
    now sees the ERP methods and can use them.
+
+   > Installing the plugin only makes it *available*. The assistant works with the tool set saved
+   > in `PersistentData/toolset.json`, and AgentBridge's built-in default set is File, Web and Git
+   > only. The one-shot installer writes that file for you with the ERP tool included, so an
+   > installed assistant can work on the ERP straight away. When setting AgentBridge up by hand,
+   > add the ERP tool with `/tools` in the assistant, or write the file yourself:
+   >
+   > ```json
+   > { "agent_set": "default-agent",
+   >   "tools": ["FileTool", "WebTool", "GitTool", "TaskSchedulerTool", "ErpTool"] }
+   > ```
+   >
+   > Without it the agent runs with no ERP access and the user has to enable the tool by hand.
 4. **Talk to the agent.** Ask it to do something in the ERP.
 
 See [Configuration](CONFIGURATION.md) for the full list of settings.
